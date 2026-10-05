@@ -4,7 +4,8 @@
 
    Índice de secciones:
      1. Textos de la interfaz
-     2. Atajos y utilidades (fechas, horas y teléfonos)
+     2. Atajos y utilidades
+     (Fechas, teléfonos y plantillas están en core.js)
      3. Base de datos (IndexedDB)
      4. Lista de citas y pestañas
      5. Formulario de cita
@@ -20,23 +21,26 @@
    Todos los textos visibles están aquí.
    Para agregar otro idioma (por ejemplo portugués):
      - copiar el bloque "es" completo y llamarlo "pt",
+     - hacer lo mismo con los datos de idioma de core.js (fechas y plantilla),
      - traducir los textos (sin tocar lo que está entre { }),
      - cambiar IDIOMA a 'pt'.
    Lo que está entre { } se reemplaza por datos reales.
    ========================================================= */
 const IDIOMA = 'es';
 
+/* Funciones de fechas, teléfonos y plantillas: vienen de core.js
+   (que se carga antes que este archivo en index.html). */
+const {
+  VARIABLES, armarMensaje, plantillaPorDefecto,
+  FORMATO_FECHA, FORMATO_HORA, hoyTexto, mananaTexto, sumarDias,
+  fechaAmigable, horaAmigable, momentoAmigable,
+  normalizarTelefono, telefonoValido, formatearTelefono, enlaceWhatsApp
+} = TucankitCore;
+TucankitCore.usarIdioma(IDIOMA);
+
 const TEXTOS = {
   es: {
-    // Nombres de días y meses para mostrar fechas
-    dias: ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'],
-    meses: ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
-      'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'],
-    am: 'a. m.',
-    pm: 'p. m.',
-    fechaFormato: '{dia} {numero} de {mes}',
-    fechaFormatoConAnio: '{dia} {numero} de {mes} de {anio}',
-    momentoFormato: '{fecha}, {hora}',
+    // (Los nombres de días y meses y la plantilla por defecto están en core.js)
 
     // Encabezado y pie
     nombreProducto: 'Citas',
@@ -102,7 +106,6 @@ const TEXTOS = {
     servicioGenerico: 'atención',
     // Si no se configuró el nombre del negocio, se usa esto en el mensaje
     negocioGenerico: 'nuestro negocio',
-    plantillaPorDefecto: 'Hola {nombre}, le recordamos su cita de {servicio} el {fecha} a las {hora} en {negocio}. Por favor responda SÍ para confirmar. ¡Gracias!',
     recordatorioMarcado: 'Marcado como enviado.',
     recordatorioDesmarcado: 'Recordatorio desmarcado.',
 
@@ -245,104 +248,6 @@ function confirmar({ titulo, texto, botonSi, peligroso = true, soloAviso = false
   });
 }
 
-/* ---------- Fechas y horas ----------
-   IMPORTANTE: las fechas se guardan como texto "AAAA-MM-DD" y las horas
-   como "HH:MM". Nunca se usa new Date("AAAA-MM-DD") porque el navegador
-   lo interpreta en hora UTC y en Costa Rica (UTC-6) la cita aparecería
-   un día antes. Siempre se arma la fecha con año, mes y día locales. */
-
-const FORMATO_FECHA = /^\d{4}-\d{2}-\d{2}$/;
-const FORMATO_HORA = /^\d{2}:\d{2}$/;
-
-/** Agrega un cero adelante si hace falta: 7 → "07". */
-const dosDigitos = (n) => String(n).padStart(2, '0');
-
-/** Convierte una fecha local del teléfono en texto "AAAA-MM-DD". */
-function fechaATexto(fecha) {
-  return `${fecha.getFullYear()}-${dosDigitos(fecha.getMonth() + 1)}-${dosDigitos(fecha.getDate())}`;
-}
-
-/** Convierte "AAAA-MM-DD" en una fecha local (a medianoche del teléfono). */
-function textoAFechaLocal(texto) {
-  const [anio, mes, dia] = texto.split('-').map(Number);
-  return new Date(anio, mes - 1, dia);
-}
-
-/** La fecha de hoy según el reloj del teléfono, como "AAAA-MM-DD". */
-const hoyTexto = () => fechaATexto(new Date());
-
-/** Suma (o resta) días a una fecha "AAAA-MM-DD". */
-function sumarDias(texto, dias) {
-  const fecha = textoAFechaLocal(texto);
-  fecha.setDate(fecha.getDate() + dias);
-  return fechaATexto(fecha);
-}
-
-/** "2026-10-07" → "miércoles 7 de octubre" (agrega el año si no es el actual). */
-function fechaAmigable(texto) {
-  const fecha = textoAFechaLocal(texto);
-  const datos = {
-    dia: t('dias')[fecha.getDay()],
-    numero: fecha.getDate(),
-    mes: t('meses')[fecha.getMonth()],
-    anio: fecha.getFullYear()
-  };
-  const esteAnio = new Date().getFullYear();
-  return t(datos.anio === esteAnio ? 'fechaFormato' : 'fechaFormatoConAnio', datos);
-}
-
-/** "15:30" → "3:30 p. m." */
-function horaAmigable(texto) {
-  const [horas, minutos] = texto.split(':').map(Number);
-  const sufijo = horas < 12 ? t('am') : t('pm');
-  const horas12 = horas % 12 || 12;
-  return `${horas12}:${dosDigitos(minutos)} ${sufijo}`;
-}
-
-/** Un instante guardado (milisegundos) → "lunes 6 de octubre, 3:30 p. m." */
-function momentoAmigable(milisegundos) {
-  const d = new Date(milisegundos);
-  return t('momentoFormato', {
-    fecha: fechaAmigable(fechaATexto(d)),
-    hora: horaAmigable(`${dosDigitos(d.getHours())}:${dosDigitos(d.getMinutes())}`)
-  });
-}
-
-/* ---------- Teléfonos ---------- */
-
-/**
- * Limpia un teléfono y le agrega el código de país si hace falta.
- * Devuelve solo dígitos, listo para WhatsApp (ej.: "50688888888").
- * Reglas:
- *  1. Si empieza con "+", ya es internacional: solo se quitan los símbolos.
- *  2. Si no: se quitan símbolos y un 0 inicial si lo tiene.
- *  3. Si ya empieza con el código de país y le siguen al menos 8 dígitos, se deja.
- *  4. Si no, se le agrega el código de país configurado.
- */
-function normalizarTelefono(texto, codigoPais) {
-  const limpio = String(texto || '').trim();
-  if (limpio.startsWith('+')) return limpio.replace(/\D/g, '');
-
-  let digitos = limpio.replace(/\D/g, '').replace(/^0/, '');
-  if (!digitos) return '';
-  const codigo = String(codigoPais || '').replace(/\D/g, '');
-  if (digitos.startsWith(codigo) && digitos.length >= codigo.length + 8) return digitos;
-  return codigo + digitos;
-}
-
-/** Un número internacional válido tiene entre 8 y 15 dígitos. */
-const telefonoValido = (digitos) => /^\d{8,15}$/.test(digitos);
-
-/** "50688888888" → "+506 8888 8888" (para mostrarlo bonito en pantalla). */
-function formatearTelefono(digitos, codigoPais) {
-  const codigo = String(codigoPais || '');
-  if (codigo && digitos.startsWith(codigo)) {
-    const resto = digitos.slice(codigo.length).replace(/(\d{4})(?=\d)/g, '$1 ');
-    return `+${codigo} ${resto}`;
-  }
-  return `+${digitos}`;
-}
-
 /* =========================================================
    3. BASE DE DATOS (IndexedDB, dentro del teléfono)
    Hay dos "cajones":
@@ -359,7 +264,7 @@ function ajustesPorDefecto() {
     negocio: '',
     direccion: '',
     codigoPais: '506',
-    plantilla: t('plantillaPorDefecto'),
+    plantilla: plantillaPorDefecto(),
     ultimaCopia: null,        // cuándo se descargó la última copia de seguridad
     primerUso: null,          // cuándo se abrió la app por primera vez
     ayudaIphoneOculta: false  // si ya cerró la ayuda de instalación en iPhone
@@ -606,7 +511,7 @@ function abrirFormulario(cita = null) {
   $('dialogo-cita-titulo').textContent = t(cita ? 'tituloEditarCita' : 'tituloNuevaCita');
 
   // Por defecto, una cita nueva es para mañana (o para hoy si está en la pestaña Hoy)
-  const fechaInicial = estado.pestana === 'hoy' ? hoyTexto() : sumarDias(hoyTexto(), 1);
+  const fechaInicial = estado.pestana === 'hoy' ? hoyTexto() : mananaTexto();
 
   $('cita-nombre').value = cita ? cita.nombre : '';
   // Al editar, el número guardado ya es internacional: se muestra con "+"
@@ -694,20 +599,10 @@ async function guardarFormulario(evento) {
 
 /* =========================================================
    6. RECORDATORIO POR WHATSAPP
+   (armarMensaje y enlaceWhatsApp están en core.js)
    La app NO envía mensajes sola. Abre WhatsApp con el mensaje
    ya escrito (enlace oficial wa.me) y la persona toca "enviar".
    ========================================================= */
-
-/**
- * Reemplaza las palabras entre { } de la plantilla por los datos.
- * Las palabras que no conoce las deja tal cual.
- */
-function armarMensaje(plantilla, datos) {
-  return plantilla
-    .replace(/\{(\w+)\}/g, (completo, nombre) => (nombre in datos ? datos[nombre] : completo))
-    .replace(/[ \t]{2,}/g, ' ') // quita espacios dobles si algún dato venía vacío
-    .trim();
-}
 
 /** Los datos de una cita listos para poner en el mensaje. */
 function datosParaMensaje(cita) {
@@ -719,11 +614,6 @@ function datosParaMensaje(cita) {
     negocio: estado.ajustes.negocio || t('negocioGenerico'),
     direccion: estado.ajustes.direccion || ''
   };
-}
-
-/** Arma el enlace oficial de WhatsApp: https://wa.me/<numero>?text=<mensaje> */
-function enlaceWhatsApp(numero, mensaje) {
-  return `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
 }
 
 function enviarRecordatorio(cita) {
@@ -756,9 +646,6 @@ async function marcarRecordatorio(cita, enviado) {
    7. AJUSTES Y PLANTILLA DEL MENSAJE
    ========================================================= */
 
-/** Palabras que se pueden usar en la plantilla del mensaje. */
-const VARIABLES = ['nombre', 'servicio', 'fecha', 'hora', 'negocio', 'direccion'];
-
 /** Cambia entre la lista de citas y la pantalla de Ajustes. */
 function mostrarVista(vista) {
   const enAjustes = vista === 'ajustes';
@@ -788,7 +675,7 @@ function actualizarVistaPrevia() {
   const datosEjemplo = {
     nombre: t('ejemploNombreCliente'),
     servicio: t('ejemploServicioCita'),
-    fecha: fechaAmigable(sumarDias(hoyTexto(), 1)),
+    fecha: fechaAmigable(mananaTexto()),
     hora: horaAmigable('15:30'),
     negocio: $('aj-negocio').value.trim() || t('negocioGenerico'),
     direccion: $('aj-direccion').value.trim()
@@ -1058,7 +945,7 @@ function conectarEventos() {
   $('btn-borrar-todo').addEventListener('click', borrarTodo);
 
   $('btn-plantilla-defecto').addEventListener('click', () => {
-    $('aj-plantilla').value = t('plantillaPorDefecto');
+    $('aj-plantilla').value = plantillaPorDefecto();
     actualizarVistaPrevia();
   });
 
