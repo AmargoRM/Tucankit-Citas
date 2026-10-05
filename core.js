@@ -6,8 +6,8 @@
    (por ejemplo, una extensión de Chrome).
 
    Contiene:
-     1. Datos de idioma para fechas y la plantilla por defecto
-     2. Plantillas de mensaje
+     1. Datos de idioma: fechas, piezas de mensajes y respuestas
+     2. Plantillas de mensaje (constructor con clics) y montos de dinero
      3. Fechas y horas
      4. Teléfonos y enlace de WhatsApp
 
@@ -35,7 +35,66 @@
       fechaFormato: '{dia} {numero} de {mes}',
       fechaFormatoConAnio: '{dia} {numero} de {mes} de {anio}',
       momentoFormato: '{fecha}, {hora}',
-      plantillaPorDefecto: 'Hola {nombre}, le recordamos su cita de {servicio} el {fecha} a las {hora} en {negocio}. Por favor responda SÍ para confirmar. ¡Gracias!'
+      // Separadores de miles y decimales para mostrar montos (₡15.000,50)
+      separadorMiles: '.',
+      separadorDecimal: ',',
+      // Piezas para armar plantillas con clics (constructor de mensajes).
+      // Cada pieza tiene versión "tu" (tú) y "usted".
+      constructor: {
+        saludos: ['Hola {nombre},', '¡Hola {nombre}!', 'Buenos días {nombre},', 'Buenas tardes {nombre},', 'Pura vida {nombre},'],
+        cuerpos: {
+          cita: {
+            tu: 'te recuerdo tu cita de {servicio} el {fecha} a las {hora} en {negocio}.',
+            usted: 'le recordamos su cita de {servicio} el {fecha} a las {hora} en {negocio}.'
+          },
+          entrega: {
+            tu: 'te aviso que tu pedido ({detalle}) llega el {fecha}.',
+            usted: 'le avisamos que su pedido ({detalle}) llega el {fecha}.'
+          },
+          cobro: {
+            tu: 'te recuerdo el saldo pendiente de {monto} ({detalle}). Puedes pagarlo por {pago}.',
+            usted: 'le recordamos el saldo pendiente de {monto} ({detalle}). Puede pagarlo por {pago}.'
+          },
+          seguimiento: {
+            tu: '¿qué tal te quedó {detalle}? Me encantaría saber tu opinión.',
+            usted: '¿qué tal le quedó {detalle}? Nos encantaría saber su opinión.'
+          },
+          llego: {
+            tu: 'ya llegó tu encargo ({detalle}). Avísame cuándo puedes pasar a recogerlo o si prefieres envío.',
+            usted: 'ya llegó su encargo ({detalle}). Avísenos cuándo puede pasar a recogerlo o si prefiere envío.'
+          }
+        },
+        pedirConfirmacion: { tu: 'Por favor responde SÍ para confirmar.', usted: 'Por favor responda SÍ para confirmar.' },
+        direccion: { tu: 'Te espero en {direccion}.', usted: 'Le esperamos en {direccion}.' },
+        cierres: ['¡Gracias!', '¡Muchas gracias!', '¡Gracias por confiar en {negocio}!', 'Saludos.', '']
+      },
+      // Opciones con que se arma la plantilla original de cada tipo
+      opcionesOriginales: {
+        cita: { saludo: 0, trato: 'tu', confirmar: true, direccion: false, cierre: 0 },
+        entrega: { saludo: 0, trato: 'tu', confirmar: false, direccion: false, cierre: 0 },
+        cobro: { saludo: 0, trato: 'tu', confirmar: false, direccion: false, cierre: 1 },
+        seguimiento: { saludo: 0, trato: 'tu', confirmar: false, direccion: false, cierre: 2 },
+        llego: { saludo: 1, trato: 'tu', confirmar: false, direccion: false, cierre: 0 }
+      },
+      // Enlaces de respuesta que se pueden agregar al final del mensaje.
+      // El cliente toca uno y se abre WhatsApp con ese texto ya escrito hacia el negocio.
+      respuestas: {
+        cita: [
+          { etiqueta: '✅ Confirmar', texto: 'Confirmo mi cita del {fecha} a las {hora}' },
+          { etiqueta: '❌ Cancelar', texto: 'Necesito cancelar mi cita del {fecha} a las {hora}' }
+        ],
+        entrega: [
+          { etiqueta: '✅ Confirmar', texto: 'Confirmo que puedo recibir el pedido el {fecha}.' }
+        ],
+        cobro: [
+          { etiqueta: '💰 Ya pagué', texto: 'Ya pagué el saldo de {monto}.' }
+        ],
+        seguimiento: [],
+        llego: [
+          { etiqueta: '✅ Voy por él', texto: '¡Gracias! Paso a recoger mi encargo.' }
+        ]
+      },
+      tocaParaResponder: 'Toca para responder:'
     }
   };
 
@@ -49,15 +108,73 @@
   /** Devuelve un dato del idioma actual. */
   const dato = (clave) => IDIOMAS[idioma][clave] ?? IDIOMAS.es[clave];
 
-  /** La plantilla de mensaje original del idioma actual. */
-  const plantillaPorDefecto = () => dato('plantillaPorDefecto');
+  /* Tipos de recordatorio. El orden es el que se muestra en pantalla. */
+  const TIPOS = ['cita', 'entrega', 'cobro', 'seguimiento', 'llego'];
+
+  /** Opciones originales del constructor para un tipo. */
+  const opcionesPorDefecto = (tipo = 'cita') => ({ ...(dato('opcionesOriginales')[tipo] || dato('opcionesOriginales').cita) });
+
+  /** Pone en mayúscula la primera letra (saltando signos como ¿ o ¡). */
+  const mayusculaInicial = (texto) => texto.replace(/^([¿¡"«]*)(\p{L})/u, (todo, signos, letra) => signos + letra.toUpperCase());
+
+  /**
+   * Arma una plantilla con las opciones elegidas con clics:
+   *   saludo (número de la lista), trato ("tu" o "usted"),
+   *   confirmar (sí/no), direccion (sí/no), cierre (número de la lista).
+   */
+  function construirPlantilla(tipo, opciones = {}) {
+    const piezas = dato('constructor');
+    const o = { ...opcionesPorDefecto(tipo), ...opciones };
+    const trato = o.trato === 'usted' ? 'usted' : 'tu';
+    const saludo = piezas.saludos[o.saludo] ?? piezas.saludos[0];
+    let cuerpo = (piezas.cuerpos[tipo] || piezas.cuerpos.cita)[trato];
+    // Después de "¡Hola Ana!" la frase empieza con mayúscula; después de "Hola Ana," no
+    if (/[!.]$/.test(saludo)) cuerpo = mayusculaInicial(cuerpo);
+    const partes = [saludo, cuerpo];
+    if (o.confirmar) partes.push(piezas.pedirConfirmacion[trato]);
+    if (o.direccion) partes.push(piezas.direccion[trato]);
+    const cierre = piezas.cierres[o.cierre] ?? '';
+    if (cierre) partes.push(cierre);
+    return partes.join(' ');
+  }
+
+  /** La plantilla de mensaje original de un tipo (por defecto, "cita"). */
+  const plantillaPorDefecto = (tipo = 'cita') => construirPlantilla(tipo, opcionesPorDefecto(tipo));
+
+  /**
+   * Texto con enlaces de respuesta para el cliente (ej.: "✅ Confirmar: https://wa.me/...").
+   * Cada enlace abre WhatsApp hacia el número del negocio con la respuesta ya escrita.
+   * Devuelve '' si el tipo no tiene respuestas o no hay número del negocio.
+   */
+  function textoEnlacesRespuesta(tipo, numeroNegocio, datos = {}) {
+    const respuestas = dato('respuestas')[tipo] || [];
+    if (!numeroNegocio || !respuestas.length) return '';
+    const lineas = respuestas.map((r) =>
+      `${r.etiqueta}: ${enlaceWhatsApp(numeroNegocio, reemplazarVariables(r.texto, datos), 'app')}`);
+    return [dato('tocaParaResponder'), ...lineas].join('\n');
+  }
 
   /* =========================================================
      2. PLANTILLAS DE MENSAJE
      ========================================================= */
 
-  /** Palabras que se pueden usar en la plantilla del mensaje. */
-  const VARIABLES = ['nombre', 'servicio', 'fecha', 'hora', 'negocio', 'direccion'];
+  /** Palabras que se pueden usar en cualquier plantilla. */
+  const VARIABLES_COMUNES = ['nombre', 'negocio', 'atiende', 'direccion'];
+
+  /** Palabras propias de cada tipo de recordatorio. */
+  const VARIABLES_POR_TIPO = {
+    cita: ['servicio', 'fecha', 'hora'],
+    entrega: ['detalle', 'fecha', 'hora'],
+    cobro: ['monto', 'pago', 'detalle', 'fecha'],
+    seguimiento: ['detalle', 'fecha'],
+    llego: ['detalle', 'fecha']
+  };
+
+  /** Todas las palabras que entiende una plantilla de un tipo. */
+  const variablesDeTipo = (tipo) => (VARIABLES_POR_TIPO[tipo] || []).concat(VARIABLES_COMUNES);
+
+  /** Todas las palabras conocidas (sin repetir). */
+  const VARIABLES = [...new Set(TIPOS.flatMap(variablesDeTipo))];
 
   /**
    * Reemplaza las palabras entre { } por los datos.
@@ -68,9 +185,55 @@
     return String(texto).replace(/\{(\w+)\}/g, (completo, nombre) => (nombre in datos ? datos[nombre] : completo));
   }
 
-  /** Arma el mensaje final y quita espacios dobles si algún dato venía vacío. */
-  function armarMensaje(plantilla, datos) {
-    return reemplazarVariables(plantilla, datos).replace(/[ \t]{2,}/g, ' ').trim();
+  /**
+   * Arma el mensaje final:
+   *  - reemplaza las palabras entre { },
+   *  - si se pasa un bloque extra (ej.: enlaces de respuesta), lo agrega al final,
+   *  - si se pasa una firma, la agrega al final (en una línea aparte),
+   *  - limpia restos de datos vacíos: "()" sueltos, espacios dobles
+   *    y espacios antes de un signo (" ." → ".").
+   */
+  function armarMensaje(plantilla, datos, firma = '', extra = '') {
+    let texto = reemplazarVariables(plantilla, datos);
+    if (extra) texto = texto.trimEnd() + '\n\n' + extra.trim();
+    const firmaLista = reemplazarVariables(String(firma || ''), datos).trim();
+    if (firmaLista) texto = texto.trimEnd() + '\n\n' + firmaLista;
+    return texto
+      .replace(/\(\s*\)/g, '')            // paréntesis vacíos
+      .replace(/[ \t]{2,}/g, ' ')           // espacios dobles
+      .replace(/[ \t]+([.,;:!?)])/g, '$1')  // espacio antes de un signo
+      .replace(/[ \t]+\n/g, '\n')           // espacios al final de una línea
+      .trim();
+  }
+
+  /* ---------- Montos de dinero ---------- */
+
+  /**
+   * Lee un monto escrito por una persona y lo convierte en número.
+   * Acepta "15000", "15.000", "15 000", "15.000,50" y "15000.50".
+   * Devuelve null si no hay un número válido.
+   */
+  function leerMonto(texto) {
+    let limpio = String(texto ?? '').replace(/[^\d.,]/g, '');
+    if (!limpio) return null;
+    if (limpio.includes(',')) {
+      // Con coma: la coma es el decimal y los puntos son miles
+      limpio = limpio.replace(/\./g, '').replace(',', '.').replace(/,/g, '');
+    } else if (/^\d{1,3}(\.\d{3})+$/.test(limpio)) {
+      // "15.000" o "1.500.000": los puntos son miles
+      limpio = limpio.replace(/\./g, '');
+    }
+    const numero = Number(limpio);
+    return Number.isFinite(numero) && numero >= 0 ? Math.round(numero * 100) / 100 : null;
+  }
+
+  /** 15000 → "₡15.000" · 15000.5 → "₡15.000,50" */
+  function formatearMonto(numero, moneda = '₡') {
+    if (typeof numero !== 'number' || !Number.isFinite(numero)) return '';
+    const [entero, decimales] = numero.toFixed(2).split('.');
+    const conMiles = entero.replace(/\B(?=(\d{3})+(?!\d))/g, dato('separadorMiles'));
+    const parteDecimal = decimales === '00' ? '' : dato('separadorDecimal') + decimales;
+    return `${moneda}${conMiles}${parteDecimal}`;
   }
 
   /* =========================================================
@@ -201,7 +364,16 @@
     IDIOMAS,
     usarIdioma,
     plantillaPorDefecto,
+    opcionesPorDefecto,
+    construirPlantilla,
+    textoEnlacesRespuesta,
+    TIPOS,
     VARIABLES,
+    VARIABLES_COMUNES,
+    VARIABLES_POR_TIPO,
+    variablesDeTipo,
+    leerMonto,
+    formatearMonto,
     reemplazarVariables,
     armarMensaje,
     FORMATO_FECHA,
