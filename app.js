@@ -348,6 +348,7 @@ const TEXTOS = {
     irAjustes: 'Ir a Ajustes',
     avisoIphone: 'Para instalar la app en su iPhone: toque el botón Compartir (el cuadrado con la flecha) y luego «Agregar a inicio».',
     avisoMigracion: 'La app se actualizó: sus {citas} citas ahora son recordatorios de tipo «Cita» y se crearon {clientes} clientes. Por si acaso, se guardó una copia automática (Ajustes → Copias automáticas).',
+    avisoDireccion: 'Está usando la dirección de PRUEBA de la app (github.io). Los navegadores guardan los datos por dirección web: cuando la app se mude a su dirección definitiva, sus datos no pasarán solos. Antes del cambio, descargue una copia de seguridad o active la sincronización con Google Drive.',
     entendido: 'Entendido',
     appInstalada: 'App instalada.',
     errorBD: 'No se pudo abrir el almacenamiento del dispositivo. Si está en modo incógnito o privado, abra la app en una ventana normal.',
@@ -505,6 +506,7 @@ function localesPorDefecto() {
     nombreDispositivo: '',
     whatsappComputadora: 'web',
     ayudaIphoneOculta: false,
+    avisoDireccionOculto: false,
     ultimaCopia: null,
     primerUso: Date.now(),
     envioGrupo: { grupo: '', mensaje: t('grupoMensajeInicial'), enviados: [] },
@@ -565,6 +567,7 @@ function normalizarLocales(a = {}) {
   if (typeof a.nombreDispositivo === 'string') r.nombreDispositivo = a.nombreDispositivo;
   if (a.whatsappComputadora === 'app') r.whatsappComputadora = 'app';
   r.ayudaIphoneOculta = a.ayudaIphoneOculta === true;
+  r.avisoDireccionOculto = a.avisoDireccionOculto === true;
   if (typeof a.ultimaCopia === 'number') r.ultimaCopia = a.ultimaCopia;
   if (typeof a.primerUso === 'number') r.primerUso = a.primerUso;
   r.driveActivo = a.driveActivo === true;
@@ -2104,6 +2107,8 @@ function revisarAvisos() {
   const dias = referencia ? (Date.now() - referencia) / 86400000 : 0;
   $('aviso-copia').hidden = avisoCopiaCerrado || !recordatoriosActivos().length || dias <= DIAS_AVISO_COPIA;
   revisarAyudaIphone();
+  // Dirección de prueba (github.io): avisar que los datos no se mudan solos de dirección
+  $('aviso-direccion').hidden = !location.hostname.endsWith('github.io') || estado.locales.avisoDireccionOculto;
 }
 
 /* =========================================================
@@ -2832,6 +2837,7 @@ function conectarEventos() {
   // Avisos e instalación
   prepararInstalacion();
   $('aviso-iphone-cerrar').addEventListener('click', () => guardarLocales({ ayudaIphoneOculta: true }).then(revisarAyudaIphone));
+  $('aviso-direccion-cerrar').addEventListener('click', () => guardarLocales({ avisoDireccionOculto: true }).then(revisarAvisos));
   $('aviso-migracion-cerrar').addEventListener('click', () => { $('aviso-migracion').hidden = true; });
 
   // Si la app queda abierta y pasa la medianoche, "hoy" y "mañana" cambian

@@ -9,10 +9,10 @@
   <link rel="stylesheet" href="styles.css">
   <style>
     /* Ajustes solo para esta página de texto */
-    .texto-legal { max-width: 680px; }
+    .texto-legal { max-width: 680px; padding-bottom: 40px; }
     .texto-legal h2 { margin: 26px 0 8px; font-size: 1.1rem; }
     .texto-legal p, .texto-legal li { margin: 0 0 10px; }
-    .texto-legal ul { padding-left: 22px; }
+    .texto-legal ul, .texto-legal ol { padding-left: 22px; }
     .destacado {
       padding: 14px 16px;
       border-radius: var(--radio);
@@ -20,6 +20,7 @@
       border: 1px solid #bfe0dd;
       font-weight: 600;
     }
+    .pie { padding-bottom: 24px; }
   </style>
 </head>
 <body>
@@ -45,19 +46,23 @@
     <p class="ayuda">Última actualización: octubre de 2026</p>
 
     <p class="destacado">
-      Tucankit Citas no envía ni guarda ningún dato fuera de su teléfono.
-      No tenemos servidores que reciban sus citas ni los datos de sus clientes.
+      Tucankit no tiene servidores que reciban sus datos y no tiene acceso a ellos.
+      Sus datos viven en su dispositivo y, solo si usted lo activa, en su propio Google Drive.
     </p>
 
     <h2>Qué datos usa la app</h2>
-    <p>La app guarda lo que usted escribe: nombre del cliente, teléfono, fecha, hora,
-      servicio y notas de cada cita, además de los datos de su negocio y la plantilla del mensaje.</p>
+    <p>La app guarda lo que usted escribe: sus clientes (nombre, teléfono, nota y etiquetas),
+      sus recordatorios (tipo, fecha, hora, detalle, monto, forma de pago, notas y estado)
+      y los ajustes de su negocio (nombre, quién atiende, dirección, firma y mensajes).</p>
 
     <h2>Dónde se guardan</h2>
-    <p>Todo se guarda únicamente en el almacenamiento interno del navegador de su dispositivo
-      (IndexedDB). Nadie más puede verlos: ni Tucankit, ni otras personas, ni otros sitios web.</p>
+    <p>En el almacenamiento interno del navegador de su dispositivo (IndexedDB). Nadie más puede verlos:
+      ni Tucankit, ni otras personas, ni otros sitios web.</p>
+    <p>Los navegadores guardan los datos <strong>por dirección web</strong>. Si la app cambia de dirección
+      (por ejemplo, de una dirección de prueba a la definitiva), los datos no se pasan solos: hay que
+      mudarlos con la copia de seguridad o con la sincronización.</p>
 
-    <h2>Qué no hacemos</h2>
+    <h2>Sin la sincronización activada, la app no se conecta a internet</h2>
     <ul>
       <li>No enviamos sus datos a ningún servidor.</li>
       <li>No usamos analítica, cookies de seguimiento ni publicidad.</li>
@@ -65,20 +70,42 @@
       <li>No pedimos crear una cuenta.</li>
     </ul>
 
+    <h2>Sincronización con Google Drive (opcional)</h2>
+    <p>Si usted la activa en Ajustes, la app se conecta <strong>únicamente</strong> con los servicios de Google
+      necesarios para Drive (accounts.google.com, apis.google.com y googleapis.com) y guarda una copia de sus datos
+      en <strong>su propio Google Drive</strong>, en un archivo llamado «Tucankit Citas - sincronizacion.json».</p>
+    <ul>
+      <li>La app pide solo el permiso de Google llamado <em>drive.file</em>: con él únicamente puede ver y cambiar
+        los archivos que ella misma creó. No puede ver el resto de su Drive.</li>
+      <li>El archivo está en su cuenta de Google. Tucankit no tiene servidores ni acceso a él.</li>
+      <li>Google le da a la app un permiso temporal (dura aproximadamente una hora) que se guarda en su dispositivo
+        para poder sincronizar sin pedirle que se conecte a cada rato.</li>
+      <li>Al usar Google Drive se aplica también la política de privacidad de Google.</li>
+    </ul>
+    <p><strong>Cómo desconectar:</strong> Ajustes → «Sincronizar con Google Drive» → «Desconectar».
+      Sus datos en el dispositivo no se borran.</p>
+    <p><strong>Cómo borrar el archivo:</strong> entre a <a href="https://drive.google.com">drive.google.com</a>,
+      busque «Tucankit Citas - sincronizacion.json», bórrelo y vacíe la papelera.
+      También puede quitarle el acceso a la app en
+      <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</p>
+
+    <h2>Pasar datos por código QR</h2>
+    <p>Al usar «Mostrar QR» y «Escanear QR», los datos pasan de un dispositivo a otro a través de la pantalla
+      y la cámara, sin internet. La imagen de la cámara se procesa en el dispositivo y no se guarda ni se envía.</p>
+
     <h2>WhatsApp</h2>
     <p>Cuando usted toca «Enviar recordatorio», la app abre WhatsApp con el mensaje ya escrito
-      (mediante un enlace oficial wa.me). A partir de ahí, el mensaje lo envía usted desde WhatsApp,
-      y se aplica la política de privacidad de WhatsApp. La app no envía mensajes por su cuenta.</p>
+      (mediante un enlace oficial). El mensaje lo envía usted desde WhatsApp y se aplica la política de
+      privacidad de WhatsApp. La app nunca envía mensajes por su cuenta.</p>
 
     <h2>Copias de seguridad</h2>
-    <p>Si usted descarga una copia de seguridad, se crea un archivo en su dispositivo.
-      Usted decide dónde guardarlo y con quién compartirlo. Le recomendamos guardarlo en un lugar seguro,
-      porque contiene los datos de sus clientes.</p>
+    <p>Si usted descarga una copia, se crea un archivo en su dispositivo. Usted decide dónde guardarlo
+      y con quién compartirlo. Guárdelo en un lugar seguro: contiene los datos de sus clientes.
+      La app también guarda sola, dentro del dispositivo, copias automáticas antes de sincronizar o restaurar.</p>
 
     <h2>Cómo borrar sus datos</h2>
-    <p>Puede borrar todo desde Ajustes → «Borrar todo», o borrando los datos del sitio en su navegador.
-      Si desinstala la app o borra los datos del navegador, la información se pierde,
-      salvo que tenga una copia de seguridad.</p>
+    <p>Ajustes → «Borrar todo», o borrando los datos del sitio en su navegador. Si sincroniza con Google Drive,
+      «Borrar todo» también se aplica en sus otros dispositivos; el archivo de Drive se borra como se explicó arriba.</p>
   </main>
 
   <footer class="pie">
