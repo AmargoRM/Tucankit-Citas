@@ -10,6 +10,7 @@
      2. Plantillas de mensaje (constructor con clics) y montos de dinero
      3. Fechas y horas
      4. Teléfonos y enlace de WhatsApp
+     5. Mezcla segura de datos (sincronización) y empaquetado para QR
 
    Cómo se usa:
      - En una página: <script src="core.js"></script> y luego
@@ -359,6 +360,222 @@
       || (plataforma === 'MacIntel' && puntosTactiles > 1); // iPad nuevo se presenta como Mac
   }
 
+  /* =========================================================
+     5. MEZCLA SEGURA DE DATOS (para QR y Google Drive)
+     Cada registro (cliente, recordatorio, etiqueta) tiene:
+       - id: código único
+       - actualizadoEn: cuándo se cambió por última vez (milisegundos)
+       - dispositivoId: qué dispositivo lo cambió
+       - borradoEn: cuándo se borró (null si no está borrado)
+     Borrar NO elimina: marca. Así el otro dispositivo se entera.
+     Al mezclar gana, registro por registro, la versión más reciente.
+     ========================================================= */
+  const DIAS_GUARDAR_BORRADOS = 90;
+
+  /** Marca un registro como cambiado ahora por este dispositivo. */
+  function sellar(registro, dispositivoId, ahora = Date.now()) {
+    return { ...registro, actualizadoEn: ahora, dispositivoId, borradoEn: registro.borradoEn ?? null };
+  }
+
+  /** Marca un registro como borrado (no lo elimina). */
+  function marcarBorrado(registro, dispositivoId, ahora = Date.now()) {
+    return { ...registro, actualizadoEn: ahora, dispositivoId, borradoEn: ahora };
+  }
+
+  /** ¿Está activo (no borrado)? */
+  const estaActivo = (registro) => !registro.borradoEn;
+
+  /**
+   * ¿Gana "a" sobre "b"? Gana el más reciente. Si se cambiaron en el mismo
+   * milisegundo, desempata el id del dispositivo, para que todos los
+   * dispositivos lleguen siempre al mismo resultado.
+   */
+  function gana(a, b) {
+    const ta = Number(a.actualizadoEn) || 0;
+    const tb = Number(b.actualizadoEn) || 0;
+    if (ta !== tb) return ta > tb;
+    return String(a.dispositivoId || '') > String(b.dispositivoId || '');
+  }
+
+  /** Resumen vacío para contar cambios. */
+  const resumenVacio = () => ({ agregados: 0, actualizados: 0, borrados: 0 });
+
+  /**
+   * Mezcla dos listas de registros (por ejemplo, los clientes de este
+   * teléfono y los que vienen de Drive). Nunca reemplaza la lista completa:
+   * compara registro por registro y se queda con el más reciente.
+   * Devuelve { lista, resumen } donde el resumen cuenta lo que cambió AQUÍ.
+   */
+  function mezclarLista(locales = [], remotos = []) {
+    const resultado = new Map(locales.map((r) => [r.id, r]));
+    const resumen = resumenVacio();
+    for (const remoto of remotos) {
+      if (!remoto || typeof remoto.id !== 'string') continue;
+      const local = resultado.get(remoto.id);
+      if (!local) {
+        resultado.set(remoto.id, remoto);
+        // Un registro que llega ya borrado no se cuenta: nunca estuvo aquí
+        if (estaActivo(remoto)) resumen.agregados += 1;
+        continue;
+      }
+      if (!gana(remoto, local)) continue;
+      resultado.set(remoto.id, remoto);
+      if (estaActivo(local) && !estaActivo(remoto)) resumen.borrados += 1;
+      else if (!estaActivo(local) && estaActivo(remoto)) resumen.agregados += 1;
+      else if (estaActivo(remoto)) resumen.actualizados += 1;
+    }
+    return { lista: [...resultado.values()], resumen };
+  }
+
+  /**
+   * Mezcla los ajustes campo por campo. Cada ajuste guarda en "_sello"
+   * cuándo se cambió cada campo: { negocio: { actualizadoEn, dispositivoId }, ... }.
+   * Solo se mezclan los campos de "clavesCompartidas"; los demás son propios
+   * de cada dispositivo y se quedan como están aquí.
+   */
+  function mezclarAjustes(local = {}, remoto = {}, clavesCompartidas = []) {
+    const resultado = { ...local, _sello: { ...(local._sello || {}) } };
+    let actualizados = 0;
+    for (const clave of clavesCompartidas) {
+      const selloRemoto = remoto._sello && remoto._sello[clave];
+      if (!selloRemoto || !(clave in remoto)) continue;
+      const selloLocal = resultado._sello[clave] || { actualizadoEn: 0, dispositivoId: '' };
+      if (gana(selloRemoto, selloLocal)) {
+        if (JSON.stringify(resultado[clave]) !== JSON.stringify(remoto[clave])) actualizados += 1;
+        resultado[clave] = remoto[clave];
+        resultado._sello[clave] = { ...selloRemoto };
+      }
+    }
+    return { ajustes: resultado, actualizados };
+  }
+
+  /** Quita las marcas de borrado de más de 90 días. */
+  function limpiarBorrados(lista, ahora = Date.now(), dias = DIAS_GUARDAR_BORRADOS) {
+    const limite = ahora - dias * 86400000;
+    return lista.filter((r) => !r.borradoEn || r.borradoEn >= limite);
+  }
+
+  /** Colecciones de registros que se sincronizan. */
+  const COLECCIONES = ['clientes', 'recordatorios', 'etiquetas'];
+
+  /**
+   * Mezcla todos los datos: { clientes, recordatorios, etiquetas, ajustes }.
+   * Devuelve { datos, resumen } con el total de agregados, actualizados y borrados.
+   */
+  function mezclarDatos(local, remoto, clavesCompartidas = [], ahora = Date.now()) {
+    const datos = {};
+    const resumen = resumenVacio();
+    for (const coleccion of COLECCIONES) {
+      const r = mezclarLista(local[coleccion] || [], remoto[coleccion] || []);
+      datos[coleccion] = limpiarBorrados(r.lista, ahora);
+      resumen.agregados += r.resumen.agregados;
+      resumen.actualizados += r.resumen.actualizados;
+      resumen.borrados += r.resumen.borrados;
+    }
+    const a = mezclarAjustes(local.ajustes || {}, remoto.ajustes || {}, clavesCompartidas);
+    datos.ajustes = a.ajustes;
+    resumen.actualizados += a.actualizados;
+    return { datos, resumen };
+  }
+
+  /* ---------- Empaquetar datos para QR: comprimir + Base45 ---------- */
+
+  /** Comprime un texto con gzip. Devuelve bytes (Uint8Array). */
+  async function comprimir(texto) {
+    const flujo = new Blob([texto]).stream().pipeThrough(new CompressionStream('gzip'));
+    return new Uint8Array(await new Response(flujo).arrayBuffer());
+  }
+
+  /** Descomprime bytes gzip y devuelve el texto. */
+  async function descomprimir(bytes) {
+    const flujo = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return new Response(flujo).text();
+  }
+
+  /*
+   * Base45: convierte bytes en letras y números que el QR guarda en su modo
+   * "alfanumérico", el más compacto y confiable para leer con la cámara.
+   */
+  const ALFABETO_45 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:';
+
+  function aBase45(bytes) {
+    let salida = '';
+    for (let i = 0; i < bytes.length; i += 2) {
+      if (i + 1 < bytes.length) {
+        let n = bytes[i] * 256 + bytes[i + 1];
+        const c = n % 45; n = (n - c) / 45;
+        const d = n % 45; const e = (n - d) / 45;
+        salida += ALFABETO_45[c] + ALFABETO_45[d] + ALFABETO_45[e];
+      } else {
+        const n = bytes[i];
+        const c = n % 45; const d = (n - c) / 45;
+        salida += ALFABETO_45[c] + ALFABETO_45[d];
+      }
+    }
+    return salida;
+  }
+
+  function deBase45(texto) {
+    const valores = [...texto].map((letra) => {
+      const v = ALFABETO_45.indexOf(letra);
+      if (v < 0) throw new Error('Letra inválida en Base45');
+      return v;
+    });
+    const bytes = [];
+    for (let i = 0; i < valores.length; i += 3) {
+      if (i + 2 < valores.length) {
+        const n = valores[i] + valores[i + 1] * 45 + valores[i + 2] * 2025;
+        if (n > 65535) throw new Error('Base45 inválido');
+        bytes.push(n >> 8, n & 255);
+      } else if (i + 1 < valores.length) {
+        const n = valores[i] + valores[i + 1] * 45;
+        if (n > 255) throw new Error('Base45 inválido');
+        bytes.push(n);
+      } else {
+        throw new Error('Base45 incompleto');
+      }
+    }
+    return new Uint8Array(bytes);
+  }
+
+  /** Letras por código QR (sin contar el encabezado). */
+  const LETRAS_POR_QR = 1000;
+
+  /**
+   * Parte un texto en varios códigos QR. Cada parte lleva un encabezado:
+   * "TK3:<lote>:<número>:<total>:<datos>". El lote identifica el envío,
+   * para no mezclar partes de dos envíos distintos.
+   */
+  function crearPartesQR(texto45, lote, letrasPorQR = LETRAS_POR_QR) {
+    const total = Math.max(1, Math.ceil(texto45.length / letrasPorQR));
+    const partes = [];
+    for (let n = 0; n < total; n += 1) {
+      partes.push(`TK3:${lote}:${n + 1}:${total}:${texto45.slice(n * letrasPorQR, (n + 1) * letrasPorQR)}`);
+    }
+    return partes;
+  }
+
+  /** Lee una parte escaneada. Devuelve { lote, numero, total, datos } o null si no es nuestra. */
+  function leerParteQR(texto) {
+    const m = /^TK3:([0-9A-Z]{4,8}):(\d{1,4}):(\d{1,4}):([0-9A-Z $%*+\-./:]*)$/.exec(String(texto || '').replace(/[\r\n]+$/, '')); // sin trim: el espacio es una letra de Base45
+    if (!m) return null;
+    const numero = Number(m[2]);
+    const total = Number(m[3]);
+    if (numero < 1 || numero > total) return null;
+    return { lote: m[1], numero, total, datos: m[4] };
+  }
+
+  /** Une las partes (en cualquier orden). Devuelve el texto completo o null si faltan. */
+  function unirPartesQR(partes) {
+    if (!partes.length) return null;
+    const total = partes[0].total;
+    const porNumero = new Map(partes.map((p) => [p.numero, p.datos]));
+    if (porNumero.size !== total) return null;
+    let texto = '';
+    for (let n = 1; n <= total; n += 1) texto += porNumero.get(n);
+    return texto;
+  }
+
   /* ---------- Lo que este archivo ofrece hacia afuera ---------- */
   const TucankitCore = {
     IDIOMAS,
@@ -391,7 +608,25 @@
     telefonoValido,
     formatearTelefono,
     enlaceWhatsApp,
-    esCelular
+    esCelular,
+    DIAS_GUARDAR_BORRADOS,
+    COLECCIONES,
+    sellar,
+    marcarBorrado,
+    estaActivo,
+    gana,
+    mezclarLista,
+    mezclarAjustes,
+    limpiarBorrados,
+    mezclarDatos,
+    comprimir,
+    descomprimir,
+    aBase45,
+    deBase45,
+    LETRAS_POR_QR,
+    crearPartesQR,
+    leerParteQR,
+    unirPartesQR
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = TucankitCore;
