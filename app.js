@@ -12,6 +12,7 @@
      6. Recordatorio por WhatsApp
      7. Ajustes y plantilla del mensaje
      8. Copia de seguridad, restaurar y borrar todo
+     9. Instalación, uso sin internet y almacenamiento
     10. Inicio de la app
    ========================================================= */
 'use strict';
@@ -909,6 +910,113 @@ function revisarAvisos() {
   const referencia = a.ultimaCopia || a.primerUso;
   const dias = referencia ? (Date.now() - referencia) / 86400000 : 0;
   $('aviso-copia').hidden = avisoCopiaCerrado || !estado.citas.length || dias <= DIAS_AVISO_COPIA;
+
+  revisarAyudaIphone();
+}
+
+/* =========================================================
+   9. INSTALACIÓN, USO SIN INTERNET Y ALMACENAMIENTO
+   ========================================================= */
+let eventoInstalacion = null;   // permiso del navegador para mostrar "Instalar"
+let actualizacionPedida = false; // true cuando la persona tocó "Hay una versión nueva"
+
+/** Muestra el botón "Instalar app" cuando el navegador lo permite (Android, Chrome, Edge). */
+function prepararInstalacion() {
+  window.addEventListener('beforeinstallprompt', (evento) => {
+    evento.preventDefault();
+    eventoInstalacion = evento;
+    $('btn-instalar').hidden = false;
+  });
+  $('btn-instalar').addEventListener('click', async () => {
+    if (!eventoInstalacion) return;
+    eventoInstalacion.prompt();
+    try { await eventoInstalacion.userChoice; } catch (error) { /* la persona cerró la ventana */ }
+    eventoInstalacion = null;
+    $('btn-instalar').hidden = true;
+  });
+  window.addEventListener('appinstalled', () => {
+    $('btn-instalar').hidden = true;
+    avisar(t('appInstalada'));
+  });
+}
+
+/** ¿Es un iPhone o iPad? (allí no existe el botón de instalar, se hace a mano) */
+function esIphone() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); // iPad nuevo
+}
+
+/** ¿La app ya está abierta como app instalada? */
+function estaInstalada() {
+  return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+}
+
+/** Ayuda para instalar en iPhone: Compartir → Agregar a inicio. */
+function revisarAyudaIphone() {
+  $('aviso-iphone').hidden = !esIphone() || estaInstalada() || estado.ajustes.ayudaIphoneOculta;
+}
+
+async function cerrarAyudaIphone() {
+  estado.ajustes = { ...estado.ajustes, ayudaIphoneOculta: true };
+  revisarAyudaIphone();
+  try { await guardarAjustesBD(estado.ajustes); } catch (error) { console.error(error); }
+}
+
+/**
+ * Registra el service worker (sw.js), que guarda la app para usarla sin internet.
+ * Solo funciona en https:// o en localhost.
+ */
+function registrarServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+
+  // Cuando la versión nueva toma el control, se recarga la página (solo si la persona lo pidió)
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (actualizacionPedida) window.location.reload();
+  });
+
+  navigator.serviceWorker.register('sw.js').then((registro) => {
+    // ¿Ya había una versión nueva esperando?
+    if (registro.waiting && navigator.serviceWorker.controller) avisarActualizacion(registro.waiting);
+
+    // ¿Aparece una versión nueva mientras la app está abierta?
+    registro.addEventListener('updatefound', () => {
+      const nuevo = registro.installing;
+      if (!nuevo) return;
+      nuevo.addEventListener('statechange', () => {
+        if (nuevo.state === 'installed' && navigator.serviceWorker.controller) avisarActualizacion(nuevo);
+      });
+    });
+
+    // Al volver a la app, revisar si hay una versión nueva publicada
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') registro.update().catch(() => {});
+    });
+  }).catch((error) => console.warn('No se pudo activar el modo sin internet:', error));
+}
+
+/** Muestra el aviso "Hay una versión nueva. Toque para actualizar." */
+function avisarActualizacion(versionNueva) {
+  const aviso = $('aviso-actualizacion');
+  aviso.hidden = false;
+  aviso.onclick = () => {
+    actualizacionPedida = true;
+    aviso.disabled = true;
+    versionNueva.postMessage({ tipo: 'ACTIVAR_VERSION_NUEVA' });
+  };
+}
+
+/**
+ * Pide al navegador que no borre los datos de la app para liberar espacio.
+ * Si el navegador no lo permite o dice que no, la app funciona igual.
+ */
+async function pedirAlmacenamientoPersistente() {
+  try {
+    if (navigator.storage && navigator.storage.persist && !(await navigator.storage.persisted())) {
+      await navigator.storage.persist();
+    }
+  } catch (error) {
+    console.warn('No se pudo pedir almacenamiento persistente:', error);
+  }
 }
 
 /* =========================================================
@@ -944,6 +1052,10 @@ function conectarEventos() {
   $('archivo-restaurar').addEventListener('change', restaurarCopia);
   $('btn-borrar-todo').addEventListener('click', borrarTodo);
 
+  // Instalación
+  prepararInstalacion();
+  $('aviso-iphone-cerrar').addEventListener('click', cerrarAyudaIphone);
+
   $('btn-plantilla-defecto').addEventListener('click', () => {
     $('aj-plantilla').value = plantillaPorDefecto();
     actualizarVistaPrevia();
@@ -958,6 +1070,8 @@ function conectarEventos() {
 async function iniciar() {
   aplicarTextos();
   conectarEventos();
+  registrarServiceWorker();
+  pedirAlmacenamientoPersistente();
 
   try {
     bd = await abrirBD();
