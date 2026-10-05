@@ -692,14 +692,6 @@ button.cita-nombre {
 /* En Grupos y en el formulario de cliente, las fichas bajan de línea (se ven todas) */
 #grupo-etiquetas { flex-wrap: wrap; overflow: visible; }
 
-/* Códigos QR */
-.qr-lienzo { display: block; width: min(340px, 100%); height: auto; margin: 8px auto; image-rendering: pixelated; background: #fff; border-radius: 8px; }
-.qr-contador { margin: 6px 0 10px; text-align: center; font-weight: 800; font-size: 1.1rem; }
-#qr-mostrando { text-align: center; }
-.qr-camara { position: relative; overflow: hidden; border-radius: 12px; background: #000; aspect-ratio: 1; }
-.qr-camara video { width: 100%; height: 100%; object-fit: cover; }
-.qr-progreso { height: 10px; margin-top: 12px; border-radius: 5px; background: var(--borde); overflow: hidden; }
-#qr-barra { width: 0; height: 100%; background: var(--accion); transition: width .2s; }
 
 /* Google Drive */
 .drive-estado { margin: 0 0 4px; font-weight: 800; }
@@ -816,3 +808,50 @@ body:has(#barra-seleccion:not([hidden])) .toast { bottom: calc(200px + env(safe-
 .horario-dia input[type="time"]:disabled { opacity: .35; }
 .aviso-horario { margin: -6px 0 12px; color: #8a4b00; font-size: .88rem; font-weight: 700; }
 #rec-hora-boton .boton { width: 100%; min-height: var(--tactil); }
+
+/* Logo que vuelve al inicio */
+.marca-boton { padding: 4px 6px 4px 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; text-decoration: none; cursor: pointer; border-radius: 10px; }
+.marca-boton:focus-visible { outline: 3px solid var(--acento); outline-offset: 2px; }
+
+/* Ajustes: secciones desplegables */
+.seccion { padding: 0; overflow: hidden; }
+.seccion > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 10px 16px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  list-style: none;
+  cursor: pointer;
+}
+.seccion > summary::-webkit-details-marker { display: none; }
+.seccion > summary::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  margin-left: auto;
+  border-right: 2.5px solid var(--texto-suave);
+  border-bottom: 2.5px solid var(--texto-suave);
+  transform: rotate(45deg);
+  transition: transform .15s;
+}
+.seccion[open] > summary::after { transform: rotate(-135deg); }
+.seccion[open] > summary { border-bottom: 1px solid var(--borde); margin-bottom: 14px; }
+.seccion > :not(summary) { margin-left: 16px; margin-right: 16px; }
+.seccion > :last-child { margin-bottom: 16px; }
+.seccion > summary:focus-visible { outline: 3px solid var(--acento); outline-offset: -3px; }
+.separador-ajustes { margin: 8px 4px; font-weight: 700; }
+
+/* Bienvenida */
+.bienvenida .dialogo-cuerpo { text-align: center; }
+.bienvenida-icono { font-size: 3rem; line-height: 1; margin: 4px 0 10px; }
+.bienvenida-texto { margin: 0 0 16px; text-align: left; }
+.bienvenida-texto p { margin: 0 0 10px; }
+.bienvenida-texto ol, .bienvenida-texto ul { margin: 0 0 10px; padding-left: 22px; }
+.bienvenida-texto li { margin-bottom: 6px; }
+.bienvenida-puntos { display: flex; justify-content: center; gap: 6px; margin-bottom: 16px; }
+.bienvenida-puntos span { width: 8px; height: 8px; border-radius: 50%; background: var(--borde); }
+.bienvenida-puntos span.activo { width: 22px; border-radius: 4px; background: var(--accion); }
+.bienvenida-saltar { display: block; margin: 8px auto 0; color: var(--texto-suave); }

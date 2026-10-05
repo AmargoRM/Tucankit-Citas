@@ -15,8 +15,8 @@
      9. Envío en fila a un grupo
     10. Ajustes, plantillas y constructor con clics
     11. Copias de seguridad, copias automáticas y borrar todo
-   11b. Pasar datos por código QR
    11c. Sincronización con Google Drive
+   11d. Bienvenida (guía de la primera vez)
     12. Instalación, uso sin internet y almacenamiento
     13. Inicio de la app
    (Fechas, teléfonos, plantillas, montos y la mezcla segura están en core.js)
@@ -153,12 +153,14 @@ const TEXTOS = {
 
     // Clientes
     buscarCliente: 'Buscar por nombre, teléfono o etiqueta',
-    etiquetasTodas: 'Todas',
+    ayudaGrupos: '🏷️ = etiquetas que usted pone · 🧾 = clientes que tienen ese servicio o producto en sus recordatorios',
+    etiquetasTodas: 'Todos',
     tituloClientes: '{cantidad} clientes',
     tituloClientesUno: '1 cliente',
     vacioClientes: 'Todavía no hay clientes. Toque «+ Nuevo cliente».',
     vacioBusqueda: 'No se encontró ningún cliente.',
     pendientesCliente: '{cantidad} próximos',
+    pendientesClienteUno: '1 próximo',
     nuevoRecordatorioCliente: '+ Recordatorio',
     abrirChat: 'Abrir chat',
     historial: 'Historial',
@@ -185,6 +187,7 @@ const TEXTOS = {
     yaPagoTodo: 'Ya pagó todo (marcar como pagado)',
     fueraDeHorario: '⚠️ Esta cita cae fuera de su horario de atención ({horario}). Puede guardarla igual.',
     avisoPendientes: 'Tiene {cantidad} recordatorios por enviar ({hoy} de hoy y {manana} de mañana).',
+    avisoPendientesUno: 'Tiene 1 recordatorio por enviar ({hoy} de hoy y {manana} de mañana).',
     verPendientes: 'Ver',
 
     // Varios clientes
@@ -240,8 +243,8 @@ const TEXTOS = {
     ejemploPago: 'Ej.: transferencia a la cuenta 123-456, efectivo',
     ajustesWhatsapp: 'WhatsApp',
     campoWhatsappComputadora: 'En computadora, abrir',
-    opcionWhatsappWeb: 'WhatsApp Web (siempre en la misma pestaña)',
-    opcionWhatsappApp: 'App de WhatsApp de escritorio',
+    opcionWhatsappWeb: 'WhatsApp Web (en el navegador)',
+    opcionWhatsappApp: 'App de WhatsApp de escritorio (recomendado si la tiene instalada)',
     campoEnlacesRespuesta: 'Agregar enlaces para que el cliente responda con un toque',
     ayudaEnlacesRespuesta: 'Al final del mensaje aparecen enlaces como «✅ Confirmar». Al tocarlos, al cliente se le abre WhatsApp con la respuesta ya escrita hacia su número; solo toca enviar.',
     campoTelefonoNegocio: 'Su número de WhatsApp (para recibir respuestas)',
@@ -291,6 +294,14 @@ const TEXTOS = {
     descargarCopia: 'Descargar copia',
     restaurarCopia: 'Restaurar copia',
     copiaDescargada: 'Copia descargada.',
+    compartirCopia: 'Compartir copia',
+    compartirTitulo: 'Copia de Tucankit Citas',
+    compartirTexto: 'Copia de seguridad de Tucankit Citas. Para recuperarla: abra la app → Ajustes → Copia de seguridad → «Restaurar copia» y elija este archivo.',
+    copiaCompartida: 'Copia compartida.',
+    compartirNoSePudo: 'No se pudo compartir. Use «Descargar copia» y envíe el archivo usted.',
+    compartirSinSoporte: 'Este navegador no permite compartir archivos, así que la copia se descargó. Búsquela en «Descargas» y envíela por WhatsApp o correo, o guárdela en su nube.',
+    copiaComoPasar: 'Para pasar sus datos a otro teléfono o computadora: toque «Compartir copia» y envíesela por WhatsApp («Mensaje a mí mismo») o por correo. En el otro dispositivo, guarde el archivo y toque «Restaurar copia».',
+    ajustesAlInstante: 'Lo que sigue se guarda al instante:',
     avisoCopia: 'Hace más de 7 días que no descarga una copia de seguridad. Le tomará un segundo y protege sus datos.',
     ahoraNo: 'Ahora no',
     errorArchivo: 'Ese archivo no es una copia válida de Tucankit Citas. No se cambió nada.',
@@ -328,36 +339,6 @@ const TEXTOS = {
     siBorrar: 'Sí, borrar todo',
     todoBorrado: 'Se borraron todos los datos.',
 
-    // Pasar datos por QR
-    qrTitulo: 'Pasar datos a otro dispositivo',
-    qrExplicacion: 'Sin internet: un dispositivo muestra códigos QR y el otro los escanea con la cámara. Los datos se mezclan sin borrar lo que ya tiene el otro.',
-    qrMostrar: 'Mostrar QR',
-    qrEscanear: 'Escanear QR',
-    qrQueEnviar: '¿Qué quiere enviar?',
-    qrTodo: 'Todo',
-    qr30Dias: 'Solo próximos 30 días y sus clientes',
-    qrGenerar: 'Generar códigos',
-    qrInstruccionMostrar: 'En el OTRO dispositivo: abra Tucankit Citas → Ajustes → «Escanear QR» y apunte la cámara a esta pantalla. Los códigos pasan solos: déjela apuntando hasta que termine.',
-    qrVariosAviso: 'Son {total} códigos. Con «Escanear QR» dentro de la app se leen todos seguidos. Con la cámara normal del celular habría que tocar el enlace de cada uno.',
-    qrContador: 'QR {numero} de {total}',
-    qrPausar: 'Pausar',
-    qrSeguir: 'Seguir',
-    qrInstruccionEscanear: 'Apunte la cámara a los códigos que muestra el otro dispositivo (Ajustes → «Mostrar QR»). Se leen en cualquier orden; al terminar le preguntará antes de recibir.',
-    otroDispositivo: 'otro dispositivo',
-    qrConfirmarTitulo: '¿Recibir estos datos?',
-    qrConfirmarTexto: 'Vienen de «{origen}»: {clientes} clientes y {recordatorios} recordatorios.\n\nSe mezclan con los suyos: no se borra nada de lo que ya tiene (gana lo más reciente). Antes se guarda una copia automática.',
-    qrRecibir: 'Sí, recibir',
-    qrParteRecibidaTitulo: 'Código QR recibido ({recibidas} de {total})',
-    qrParteRecibidaTexto: 'Faltan {faltan} códigos. Toque «Seguir escaneando» y apunte la cámara a la pantalla del otro dispositivo para leer el resto.',
-    qrSeguirEscaneando: 'Seguir escaneando',
-    qrBuscando: 'Buscando códigos…',
-    qrRecibidas: 'Recibidos {recibidas} de {total}',
-    qrAplicando: 'Aplicando los datos…',
-    qrListo: 'Datos recibidos',
-    qrInvalido: 'Los códigos se leyeron pero los datos no son válidos. No se cambió nada.',
-    qrSinPermiso: 'La app no tiene permiso para usar la cámara. Puede darle permiso en los ajustes del navegador, o pasar los datos con Google Drive o con la copia de seguridad.',
-    qrSinCamara: 'No se encontró una cámara en este dispositivo. Pase los datos con Google Drive o con la copia de seguridad.',
-    qrSinCompresion: 'Este navegador es muy antiguo para generar los códigos. Actualícelo, o use Google Drive o la copia de seguridad.',
     cerrar: 'Cerrar',
 
     // Google Drive
@@ -399,6 +380,49 @@ const TEXTOS = {
     confirmarEliminarProducto: '¿Quitar «{nombre}» de la lista?',
     productoEliminarTexto: 'Los recordatorios que ya lo usan no cambian.',
 
+    // Bienvenida (guía de la primera vez). Usan negritas y listas: son textos fijos de la app.
+    bienvenida: [
+      {
+        icono: '👋',
+        titulo: 'Bienvenido a Tucankit Citas',
+        texto: '<p>Le ayuda a recordarles a sus clientes <strong>citas, entregas, cobros y más</strong> por WhatsApp, <strong>sin pagar por mensaje</strong>.</p><p>Le mostramos cómo funciona en pocos pasos.</p>'
+      },
+      {
+        icono: '📲',
+        titulo: 'Así se envía un recordatorio',
+        texto: '<ol><li>Toque <strong>«+ Nuevo»</strong> y elija el tipo: cita, entrega, cobro…</li><li>Elija el cliente (o créelo ahí mismo) y la fecha.</li><li>Toque <strong>«Enviar recordatorio»</strong>: se abre WhatsApp con el mensaje ya escrito.</li><li>Usted toca <strong>enviar</strong> en WhatsApp. La app nunca envía mensajes sola.</li></ol>'
+      },
+      {
+        icono: '🔒',
+        titulo: 'Sus datos viven en este teléfono',
+        texto: '<p>No hay cuentas ni servidores: sus clientes y recordatorios se guardan <strong>solo en este dispositivo</strong>. Nadie más puede verlos.</p><p>Por eso, si pierde el teléfono o borra los datos del navegador, <strong>se pierden</strong>… salvo que tenga una copia.</p>'
+      },
+      {
+        icono: '💾',
+        titulo: 'Haga una copia cada semana',
+        texto: '<ol><li>Vaya a <strong>Ajustes → Copia de seguridad</strong>.</li><li>Toque <strong>«Compartir copia»</strong> y envíesela a su propio WhatsApp («Mensaje a mí mismo») o a su correo.</li><li>Para recuperarla, en este u otro teléfono: guarde el archivo y toque <strong>«Restaurar copia»</strong>.</li></ol><p>Si pasan 7 días sin copia, la app se lo recuerda.</p>'
+      },
+      {
+        icono: '📱',
+        titulo: 'Instálela como una app',
+        texto: '<ul><li><strong>Android:</strong> toque «Instalar app» arriba, o el menú ⋮ del navegador → «Instalar app».</li><li><strong>iPhone:</strong> en Safari, toque Compartir (el cuadrado con la flecha) → «Agregar a inicio».</li></ul><p>Así se abre con un toque y funciona sin internet.</p>'
+      },
+      {
+        icono: '⚙️',
+        titulo: 'Último paso: su negocio',
+        texto: '<p>En <strong>Ajustes</strong> escriba el nombre de su negocio y elija su país y su horario. Así los mensajes salen completos.</p><p>Puede volver a ver esta guía cuando quiera en <strong>Ajustes → Guía de uso</strong>.</p>'
+      }
+    ],
+    atras: 'Atrás',
+    siguiente: 'Siguiente',
+    irAjustesFinal: 'Ir a Ajustes',
+    saltarGuia: 'Saltar la guía',
+    ahoraNoGuia: 'Ahora no',
+    guiaTitulo: 'Guía de uso',
+    guiaExplicacion: 'Vuelva a ver las ventanas que explican cómo funciona la app.',
+    verGuia: 'Ver la guía',
+    irAlInicio: 'Ir al inicio',
+
     // Avisos
     avisoActualizacion: 'Hay una versión nueva. Toque para actualizar.',
     avisoNegocio: 'Complete en Ajustes el nombre de su negocio y su país, para que los mensajes y los teléfonos salgan bien.',
@@ -424,6 +448,7 @@ const $ = (id) => document.getElementById(id);
 function t(clave, datos = {}) {
   const textos = TEXTOS[IDIOMA] || TEXTOS.es;
   const texto = textos[clave] ?? TEXTOS.es[clave] ?? clave;
+  if (typeof texto !== 'string') return texto;
   return String(texto).replace(/\{(\w+)\}/g, (completo, nombre) => (nombre in datos ? datos[nombre] : completo));
 }
 
@@ -432,6 +457,7 @@ function aplicarTextos() {
   document.documentElement.lang = IDIOMA;
   document.querySelectorAll('[data-t]').forEach((el) => { el.textContent = t(el.dataset.t); });
   document.querySelectorAll('[data-t-placeholder]').forEach((el) => { el.placeholder = t(el.dataset.tPlaceholder); });
+  document.querySelectorAll('[data-t-aria]').forEach((el) => { el.setAttribute('aria-label', t(el.dataset.tAria)); });
 }
 
 /** Crea un elemento con clase y texto (atajo para armar listas). */
@@ -573,11 +599,11 @@ function localesPorDefecto() {
     whatsappComputadora: 'web',
     ayudaIphoneOculta: false,
     avisoDireccionOculto: false,
+    bienvenidaVista: false,
     ultimaCopia: null,
     primerUso: Date.now(),
     envioGrupo: { grupo: '', mensaje: t('grupoMensajeInicial'), enviados: [], elegidos: [] },
     // Google Drive (propio de este dispositivo; nunca se sincroniza)
-    qrRecibidas: null,     // partes de QR recibidas de un envío (para no perder el avance)
     driveActivo: false,
     driveToken: '',        // permiso temporal de Google (~1 hora)
     driveTokenVence: 0,
@@ -642,12 +668,9 @@ function normalizarLocales(a = {}) {
   if (a.whatsappComputadora === 'app') r.whatsappComputadora = 'app';
   r.ayudaIphoneOculta = a.ayudaIphoneOculta === true;
   r.avisoDireccionOculto = a.avisoDireccionOculto === true;
+  r.bienvenidaVista = a.bienvenidaVista === true;
   if (typeof a.ultimaCopia === 'number') r.ultimaCopia = a.ultimaCopia;
   if (typeof a.primerUso === 'number') r.primerUso = a.primerUso;
-  const q = a.qrRecibidas;
-  if (q && typeof q === 'object' && typeof q.lote === 'string' && Number.isInteger(q.total) && q.partes && Date.now() - q.en < 86400000) {
-    r.qrRecibidas = { lote: q.lote, total: q.total, partes: q.partes, en: q.en };
-  }
   r.driveActivo = a.driveActivo === true;
   r.drivePendiente = a.drivePendiente === true;
   ['driveToken', 'driveArchivoId', 'driveCuenta'].forEach((k) => { if (typeof a[k] === 'string') r[k] = a[k]; });
@@ -1390,13 +1413,46 @@ async function guardarFormularioRecordatorio(evento) {
 const proximosDeCliente = (id) => recordatoriosActivos().filter((r) => r.clienteId === id && r.fecha >= hoyTexto());
 
 /** Botones de filtro por etiqueta (en Clientes). */
+/**
+ * Grupos de clientes:
+ *  - por etiqueta (puestas a mano): id = id de la etiqueta;
+ *  - por servicio o producto (automáticos): id = "p:<id del producto>", con los
+ *    clientes que tienen algún recordatorio con ese producto en el detalle.
+ */
+function gruposDeClientes() {
+  const grupos = etiquetasActivas().map((e) => ({ id: e.id, nombre: e.nombre, icono: '🏷️' }));
+  productosActivos().forEach((x) => {
+    if (clientesDeProducto(x.id).size) grupos.push({ id: 'p:' + x.id, nombre: x.nombre, icono: '🧾' });
+  });
+  return grupos;
+}
+
+/** Ids de los clientes que tienen algún recordatorio con ese producto en el detalle. */
+function clientesDeProducto(idProducto) {
+  const producto = estado.productos.find((x) => x.id === idProducto);
+  const ids = new Set();
+  if (!producto) return ids;
+  const nombre = paraBuscar(producto.nombre);
+  recordatoriosActivos().forEach((r) => {
+    if (String(r.detalle || '').split(',').some((parte) => paraBuscar(parte.trim()) === nombre)) ids.add(r.clienteId);
+  });
+  return ids;
+}
+
+/** ¿El cliente pertenece al grupo (etiqueta o producto)? */
+function clienteEnGrupo(cliente, grupo) {
+  if (grupo.startsWith('p:')) return clientesDeProducto(grupo.slice(2)).has(cliente.id);
+  return (cliente.etiquetaIds || []).includes(grupo);
+}
+
 function dibujarFiltroEtiquetas() {
   const contenedor = $('filtro-etiquetas');
   contenedor.replaceChildren();
-  const etiquetas = etiquetasActivas();
-  contenedor.hidden = !etiquetas.length;
-  [{ id: '', nombre: t('etiquetasTodas') }, ...etiquetas].forEach((e) => {
-    const b = crear('button', 'ficha', e.id ? `🏷️ ${e.nombre}` : e.nombre);
+  const grupos = gruposDeClientes();
+  contenedor.hidden = !grupos.length;
+  $('ayuda-grupos').hidden = !grupos.some((g) => g.id.startsWith('p:'));
+  [{ id: '', nombre: t('etiquetasTodas') }, ...grupos].forEach((e) => {
+    const b = crear('button', 'ficha', e.id ? `${e.icono} ${e.nombre}` : e.nombre);
     b.type = 'button';
     b.setAttribute('aria-pressed', String(estado.filtroEtiqueta === e.id));
     b.addEventListener('click', () => { estado.filtroEtiqueta = e.id; dibujarClientes(); });
@@ -1415,12 +1471,12 @@ function chipsEtiquetas(cliente) {
 /** Dibuja la lista de clientes con buscador y filtro. */
 function dibujarClientes() {
   dibujarFiltroEtiquetas();
-  if (estado.filtroEtiqueta && !etiquetasActivas().some((e) => e.id === estado.filtroEtiqueta)) estado.filtroEtiqueta = '';
+  if (estado.filtroEtiqueta && !gruposDeClientes().some((e) => e.id === estado.filtroEtiqueta)) estado.filtroEtiqueta = '';
   const lista = $('lista-clientes');
   lista.replaceChildren();
   const todos = clientesActivos();
   const clientes = todos
-    .filter((c) => !estado.filtroEtiqueta || (c.etiquetaIds || []).includes(estado.filtroEtiqueta))
+    .filter((c) => !estado.filtroEtiqueta || clienteEnGrupo(c, estado.filtroEtiqueta))
     .filter((c) => clienteCoincide(c, estado.busqueda))
     .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
   $('titulo-clientes').textContent = clientes.length === 1 ? t('tituloClientesUno') : t('tituloClientes', { cantidad: clientes.length });
@@ -1440,7 +1496,7 @@ function dibujarClientes() {
     texto.append(crear('strong', '', c.nombre), crear('small', '', formatearTelefono(c.telefono, estado.compartidos.codigoPais)), chipsEtiquetas(c));
     fila.append(texto);
     const proximos = proximosDeCliente(c.id).length;
-    if (proximos && !estado.seleccionando) fila.append(crear('span', 'contador-pendientes', t('pendientesCliente', { cantidad: proximos })));
+    if (proximos && !estado.seleccionando) fila.append(crear('span', 'contador-pendientes', proximos === 1 ? t('pendientesClienteUno') : t('pendientesCliente', { cantidad: proximos })));
     fila.addEventListener('click', () => (estado.seleccionando ? alternarSeleccion(c.id) : abrirFicha(c.id)));
     lista.append(fila);
   });
@@ -1730,11 +1786,18 @@ const PESTANA_WHATSAPP = 'tucankit-whatsapp';
  */
 function abrirWhatsApp(numero, mensaje) {
   const celular = TucankitCore.esCelular(navigator.userAgent, navigator.platform, navigator.maxTouchPoints);
-  if (celular || estado.locales.whatsappComputadora === 'app') {
+  if (celular) {
     window.open(enlaceWhatsApp(numero, mensaje, 'app'), '_blank', 'noopener');
     return;
   }
-  // Sin "noopener": es lo que permite que el navegador reuse la pestaña con este nombre
+  if (estado.locales.whatsappComputadora === 'app') {
+    // App de WhatsApp de escritorio: se abre directo, siempre en la misma ventana
+    // (la página de Tucankit no se va: el enlace whatsapp:// lo atiende la app instalada)
+    window.location.href = enlaceWhatsApp(numero, mensaje, 'escritorio');
+    return;
+  }
+  // WhatsApp Web: se pide reusar la pestaña con este nombre (sin "noopener").
+  // WhatsApp Web puede impedirlo por seguridad y entonces se abre una pestaña nueva.
   const pestana = window.open(enlaceWhatsApp(numero, mensaje, 'web'), PESTANA_WHATSAPP);
   if (pestana) pestana.focus();
 }
@@ -1811,7 +1874,7 @@ function clientesDelGrupo(grupo) {
   if (!grupo) return [];
   const elegidos = estado.locales.envioGrupo.elegidos || [];
   return clientesActivos()
-    .filter((c) => grupo === '*' || (grupo === 'manual' ? elegidos.includes(c.id) : (c.etiquetaIds || []).includes(grupo)))
+    .filter((c) => grupo === '*' || (grupo === 'manual' ? elegidos.includes(c.id) : clienteEnGrupo(c, grupo)))
     .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
 }
 
@@ -1827,8 +1890,8 @@ function dibujarGrupos() {
   // 1. Elegir grupo
   const elegir = $('grupo-etiquetas');
   elegir.replaceChildren();
-  [{ id: 'manual', nombre: t('grupoElegirClientes') }, { id: '*', nombre: t('grupoTodos') }, ...etiquetasActivas()].forEach((e) => {
-    const b = crear('button', 'ficha', e.id === '*' || e.id === 'manual' ? e.nombre : `🏷️ ${e.nombre}`);
+  [{ id: 'manual', nombre: t('grupoElegirClientes') }, { id: '*', nombre: t('grupoTodos') }, ...gruposDeClientes()].forEach((e) => {
+    const b = crear('button', 'ficha', e.icono ? `${e.icono} ${e.nombre}` : e.nombre);
     b.type = 'button';
     b.setAttribute('aria-pressed', String(g.grupo === e.id));
     b.addEventListener('click', () => cambiarGrupo(e.id));
@@ -2038,6 +2101,14 @@ function leerHorarioFormulario() {
   }));
 }
 
+/** Va a Ajustes con una sección abierta (y las demás cerradas). */
+function abrirSeccionAjustes(nombre) {
+  mostrarVista('ajustes');
+  document.querySelectorAll('#vista-ajustes details.seccion').forEach((d) => { d.open = d.dataset.seccion === nombre; });
+  const seccion = document.querySelector(`#vista-ajustes details[data-seccion="${nombre}"]`);
+  if (seccion) seccion.scrollIntoView({ block: 'start' });
+}
+
 /** Lista de países para elegir (con bandera y código). */
 function llenarPaises() {
   const lista = $('aj-pais');
@@ -2189,8 +2260,14 @@ async function guardarAjustes(evento) {
   marcarError('telnegocio', errorTel);
   marcarError('plantilla', vacia ? t('errorPlantilla') : '');
   if (vacia) { estado.editorTipo = vacia; dibujarEditorPlantilla(); marcarError('plantilla', t('errorPlantilla')); }
+  const enfocar = (campo) => {
+    const seccion = campo.closest('details');
+    if (seccion) seccion.open = true; // si el error está en una sección cerrada, se abre
+    campo.scrollIntoView({ block: 'center' });
+    campo.focus();
+  };
   if (errorCodigo || errorTel || vacia) {
-    (errorCodigo ? $('aj-codigo') : errorTel ? $('aj-telnegocio') : $('aj-plantilla')).focus();
+    enfocar(errorCodigo ? $('aj-codigo') : errorTel ? $('aj-telnegocio') : $('aj-plantilla'));
     return false;
   }
 
@@ -2241,7 +2318,7 @@ const COPIA_VERSION = 2;
 const DIAS_AVISO_COPIA = 7;
 let avisoCopiaCerrado = false;
 
-/** Datos actuales listos para guardar en un archivo, QR o Drive. */
+/** Datos actuales listos para guardar en un archivo o en Drive. */
 function paqueteDatos() {
   return {
     app: COPIA_APP,
@@ -2261,6 +2338,31 @@ function paqueteDatos() {
 function mostrarUltimaCopia() {
   const ultima = estado.locales.ultimaCopia;
   $('copia-ultima').textContent = ultima ? t('copiaUltima', { momento: momentoAmigable(ultima) }) : t('copiaNunca');
+}
+
+/**
+ * "Compartir copia": abre el menú de compartir del teléfono (WhatsApp, correo,
+ * Drive, AirDrop/Nearby...) con el archivo de copia. Se comparte como .txt
+ * porque Android no deja compartir archivos .json (el contenido es el mismo).
+ * Si el navegador no puede compartir archivos, se descarga y se explica cómo enviarlo.
+ */
+async function compartirCopia() {
+  const nombre = `tucankit-citas-copia-${hoyTexto()}.txt`;
+  const archivo = new File([JSON.stringify(paqueteDatos())], nombre, { type: 'text/plain' });
+  if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
+    try {
+      await navigator.share({ files: [archivo], title: t('compartirTitulo'), text: t('compartirTexto') });
+      await guardarLocales({ ultimaCopia: Date.now() });
+      mostrarUltimaCopia();
+      revisarAvisos();
+      avisar(t('copiaCompartida'));
+    } catch (error) {
+      if (error && error.name !== 'AbortError') { console.warn(error); avisar(t('compartirNoSePudo'), 5); }
+    }
+    return;
+  }
+  await descargarCopia();
+  await confirmar({ titulo: t('compartirCopia'), texto: t('compartirSinSoporte'), botonSi: t('entendido'), peligroso: false, soloAviso: true });
 }
 
 async function descargarCopia() {
@@ -2295,7 +2397,7 @@ function metaDe(x, dispositivoId, ahora) {
 }
 
 /**
- * Revisa un paquete de datos (de un archivo, un QR o Drive).
+ * Revisa un paquete de datos (de un archivo o de Drive).
  * Devuelve { clientes, recordatorios, etiquetas, ajustes, creada } limpios
  * o lanza un error si algo está mal. Solo se toman los campos conocidos.
  */
@@ -2372,7 +2474,7 @@ async function guardarCopiaAuto(motivo) {
 }
 
 /**
- * Aplica datos que llegaron de afuera (copia, QR o Drive) con la mezcla segura:
+ * Aplica datos que llegaron de afuera (copia o Drive) con la mezcla segura:
  * registro por registro gana el más reciente. Antes guarda una copia automática.
  * Devuelve el resumen de cambios.
  */
@@ -2576,7 +2678,7 @@ function revisarPendientes() {
   $('aviso-pendientes').hidden = avisoPendientesCerrado || !n || estado.vista !== 'agenda';
   if (n) {
     const deHoy = pendientes.filter((r) => r.fecha === hoyTexto()).length;
-    $('aviso-pendientes-texto').textContent = t('avisoPendientes', { cantidad: n, hoy: deHoy, manana: n - deHoy });
+    $('aviso-pendientes-texto').textContent = t(n === 1 ? 'avisoPendientesUno' : 'avisoPendientes', { cantidad: n, hoy: deHoy, manana: n - deHoy });
   }
   // Número en el ícono de la app instalada (si el sistema lo permite)
   try {
@@ -2596,18 +2698,7 @@ function revisarAvisos() {
   $('aviso-direccion').hidden = !location.hostname.endsWith('github.io') || estado.locales.avisoDireccionOculto;
 }
 
-/* =========================================================
-   11b. PASAR DATOS POR CÓDIGO QR (sin internet)
-   Mostrar: datos → gzip → base64url → partes "<dirección>#qr=TK4..." → QR en secuencia.
-   Escanear: cámara → BarcodeDetector (si existe) o jsQR → juntar partes
-   en cualquier orden → mezcla segura.
-   Las bibliotecas (vendor/) se cargan solo al abrir estas ventanas.
-   ========================================================= */
-const MS_POR_QR = 700;
-const qrMostrar = { partes: [], indice: 0, temporizador: null, pausado: false };
-const qrEscaneo = { flujo: null, activo: false, lotes: new Map(), detector: null, lienzo: null };
-
-/** Carga un archivo de vendor/ una sola vez. */
+/** Carga un archivo de código una sola vez (ej.: el de Google para Drive). */
 const scriptsCargados = new Map();
 function cargarScript(ruta) {
   if (!scriptsCargados.has(ruta)) {
@@ -2620,284 +2711,6 @@ function cargarScript(ruta) {
     }));
   }
   return scriptsCargados.get(ruta);
-}
-
-/** Datos a enviar: todo (incluye borrados, para que viajen) o solo los próximos 30 días. */
-function paqueteParaQR(alcance) {
-  const paquete = paqueteDatos();
-  if (alcance !== '30') return paquete;
-  const hoy = hoyTexto();
-  const limite = sumarDias(hoy, 30);
-  const recordatorios = recordatoriosActivos().filter((r) => r.fecha >= hoy && r.fecha <= limite);
-  const idsClientes = new Set(recordatorios.map((r) => r.clienteId));
-  const clientes = clientesActivos().filter((c) => idsClientes.has(c.id));
-  const idsEtiquetas = new Set(clientes.flatMap((c) => c.etiquetaIds || []));
-  paquete.datos = { ...paquete.datos, recordatorios, clientes, etiquetas: etiquetasActivas().filter((e) => idsEtiquetas.has(e.id)) };
-  return paquete;
-}
-
-function abrirMostrarQR() {
-  $('qr-opciones').hidden = false;
-  $('qr-mostrando').hidden = true;
-  $('qr-mostrar-error').hidden = true;
-  $('dialogo-qr-mostrar').showModal();
-}
-
-async function generarQR() {
-  try {
-    if (!('CompressionStream' in window)) throw new Error(t('qrSinCompresion'));
-    await cargarScript('vendor/qrcode-generator/qrcode.js');
-    const alcance = document.querySelector('input[name="qr-alcance"]:checked').value;
-    const bytes = await TucankitCore.comprimir(JSON.stringify(paqueteParaQR(alcance)));
-    const lote = Math.random().toString(36).slice(2, 7).toUpperCase().replace(/[^0-9A-Z]/g, 'X').padEnd(5, '0');
-    // Cada código es una dirección de la app: con la cámara normal, el celular ofrece abrirla
-    const direccionApp = location.origin + location.pathname;
-    qrMostrar.partes = TucankitCore.crearPartesQR(TucankitCore.aBase64Url(bytes), lote, direccionApp);
-    $('qr-varios-aviso').hidden = qrMostrar.partes.length < 2;
-    $('qr-varios-aviso').textContent = t('qrVariosAviso', { total: qrMostrar.partes.length });
-    qrMostrar.indice = 0;
-    qrMostrar.pausado = false;
-    $('qr-opciones').hidden = true;
-    $('qr-mostrando').hidden = false;
-    $('qr-pausa').hidden = qrMostrar.partes.length < 2;
-    $('qr-pausa').textContent = t('qrPausar');
-    dibujarQRActual();
-    clearInterval(qrMostrar.temporizador);
-    if (qrMostrar.partes.length > 1) {
-      qrMostrar.temporizador = setInterval(() => {
-        if (qrMostrar.pausado) return;
-        qrMostrar.indice = (qrMostrar.indice + 1) % qrMostrar.partes.length;
-        dibujarQRActual();
-      }, MS_POR_QR);
-    }
-  } catch (error) {
-    console.error(error);
-    $('qr-mostrar-error').textContent = error.message || String(error);
-    $('qr-mostrar-error').hidden = false;
-  }
-}
-
-/** Dibuja el QR actual en el lienzo (cuadritos negros sobre blanco, con margen). */
-function dibujarQRActual() {
-  const texto = qrMostrar.partes[qrMostrar.indice];
-  const qr = qrcode(0, 'L'); // tamaño automático; corrección "L" (pantallas limpias)
-  qr.addData(texto, 'Byte');
-  qr.make();
-  const modulos = qr.getModuleCount();
-  const lienzo = $('qr-lienzo');
-  const margen = 4;
-  const celda = Math.max(2, Math.floor(680 / (modulos + margen * 2)));
-  const lado = celda * (modulos + margen * 2);
-  lienzo.width = lado;
-  lienzo.height = lado;
-  const g = lienzo.getContext('2d');
-  g.fillStyle = '#fff';
-  g.fillRect(0, 0, lado, lado);
-  g.fillStyle = '#000';
-  for (let fila = 0; fila < modulos; fila += 1) {
-    for (let col = 0; col < modulos; col += 1) {
-      if (qr.isDark(fila, col)) g.fillRect((col + margen) * celda, (fila + margen) * celda, celda, celda);
-    }
-  }
-  $('qr-contador').textContent = t('qrContador', { numero: qrMostrar.indice + 1, total: qrMostrar.partes.length });
-}
-
-function cerrarMostrarQR() {
-  clearInterval(qrMostrar.temporizador);
-  qrMostrar.partes = [];
-  if ($('dialogo-qr-mostrar').open) $('dialogo-qr-mostrar').close();
-}
-
-/* ---------- Escanear ---------- */
-
-/**
- * Guarda una parte recibida (en memoria y en el dispositivo, para no perder
- * el avance si se cierra la ventana o si llegan por la cámara normal).
- * Devuelve las partes de ese envío.
- */
-function registrarParteQR(parte) {
-  if (!qrEscaneo.lotes.has(parte.lote)) qrEscaneo.lotes.set(parte.lote, new Map());
-  const lote = qrEscaneo.lotes.get(parte.lote);
-  lote.set(parte.numero, parte);
-  const partes = {};
-  lote.forEach((p, n) => { partes[n] = p.datos; });
-  guardarLocales({ qrRecibidas: { lote: parte.lote, total: parte.total, partes, en: Date.now() } }).catch(console.error);
-  return lote;
-}
-
-/** Recupera el avance guardado (partes ya recibidas de un envío). */
-function cargarPartesGuardadasQR() {
-  qrEscaneo.lotes = new Map();
-  const r = estado.locales.qrRecibidas;
-  if (!r) return;
-  const lote = new Map();
-  Object.entries(r.partes).forEach(([n, datos]) => lote.set(Number(n), { lote: r.lote, numero: Number(n), total: r.total, datos }));
-  qrEscaneo.lotes.set(r.lote, lote);
-}
-
-/**
- * Llegaron todas las partes: se revisan los datos, se pregunta antes de
- * recibir (nada se mezcla sin un "Sí") y se aplica la mezcla segura.
- */
-async function recibirDatosQR(texto64) {
-  let paquete;
-  let datos;
-  try {
-    paquete = JSON.parse(await TucankitCore.descomprimir(TucankitCore.deBase64Url(texto64)));
-    datos = validarPaquete(paquete);
-  } catch (error) {
-    console.error(error);
-    await guardarLocales({ qrRecibidas: null });
-    await confirmar({ titulo: t('qrTitulo'), texto: t('qrInvalido'), botonSi: t('entendido'), peligroso: false, soloAviso: true });
-    return;
-  }
-  const origen = (paquete.dispositivo && paquete.dispositivo.nombre) || t('otroDispositivo');
-  const seguro = await confirmar({
-    titulo: t('qrConfirmarTitulo'),
-    texto: t('qrConfirmarTexto', {
-      origen, clientes: datos.clientes.filter(estaActivo).length, recordatorios: datos.recordatorios.filter(estaActivo).length
-    }),
-    botonSi: t('qrRecibir'),
-    peligroso: false
-  });
-  await guardarLocales({ qrRecibidas: null });
-  qrEscaneo.lotes = new Map();
-  if (!seguro) return;
-  const resumen = await aplicarMezcla(datos, 'qr');
-  alCambiarDatos();
-  redibujar();
-  await confirmar({ titulo: t('qrListo'), texto: textoResumen(resumen), botonSi: t('entendido'), peligroso: false, soloAviso: true });
-}
-
-/**
- * Si la app se abrió desde un código QR escaneado con la cámara normal
- * (dirección con "#qr=..."), guarda esa parte y guía a la persona.
- */
-async function revisarQREnDireccion() {
-  if (!location.hash.startsWith('#qr=')) return;
-  const parte = TucankitCore.leerParteQR(location.hash);
-  // Se quita de la dirección para que no quede en el historial del navegador
-  history.replaceState(null, '', location.pathname + location.search);
-  if (!parte) return;
-  cargarPartesGuardadasQR();
-  const lote = registrarParteQR(parte);
-  const completo = TucankitCore.unirPartesQR([...lote.values()]);
-  if (completo != null) { await recibirDatosQR(completo); return; }
-  const seguir = await confirmar({
-    titulo: t('qrParteRecibidaTitulo', { recibidas: lote.size, total: parte.total }),
-    texto: t('qrParteRecibidaTexto', { faltan: parte.total - lote.size }),
-    botonSi: t('qrSeguirEscaneando'),
-    peligroso: false
-  });
-  if (seguir) abrirEscanearQR();
-}
-
-async function abrirEscanearQR() {
-  cargarPartesGuardadasQR();
-  $('qr-escanear-error').hidden = true;
-  const previas = [...qrEscaneo.lotes.values()][0];
-  $('qr-barra').style.width = previas ? `${Math.round((previas.size / [...previas.values()][0].total) * 100)}%` : '0';
-  $('qr-estado').textContent = previas
-    ? t('qrRecibidas', { recibidas: previas.size, total: [...previas.values()][0].total })
-    : t('qrBuscando');
-  $('dialogo-qr-escanear').showModal();
-  try {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw Object.assign(new Error('sin cámara'), { name: 'NotFoundError' });
-    // Lector propio del navegador si existe y entiende QR; si no, jsQR
-    qrEscaneo.detector = null;
-    if ('BarcodeDetector' in window) {
-      try {
-        const formatos = await window.BarcodeDetector.getSupportedFormats();
-        if (formatos.includes('qr_code')) qrEscaneo.detector = new window.BarcodeDetector({ formats: ['qr_code'] });
-      } catch (error) { qrEscaneo.detector = null; }
-    }
-    if (!qrEscaneo.detector) await cargarScript('vendor/jsqr/jsQR.js');
-    qrEscaneo.flujo = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-    const video = $('qr-video');
-    video.srcObject = qrEscaneo.flujo;
-    await video.play();
-    qrEscaneo.activo = true;
-    buclesDeEscaneo();
-  } catch (error) {
-    console.warn('Cámara:', error);
-    const sinPermiso = error && (error.name === 'NotAllowedError' || error.name === 'SecurityError');
-    $('qr-escanear-error').textContent = t(sinPermiso ? 'qrSinPermiso' : 'qrSinCamara');
-    $('qr-escanear-error').hidden = false;
-    $('qr-estado').textContent = '';
-    detenerCamara();
-  }
-}
-
-/** Lee un cuadro de la cámara cada ~150 ms hasta completar o cerrar. */
-async function buclesDeEscaneo() {
-  if (!qrEscaneo.activo) return;
-  const video = $('qr-video');
-  try {
-    if (video.readyState >= 2) {
-      const textos = await leerQRDelVideo(video);
-      for (const texto of textos) {
-        const terminado = await recibirParteQR(texto);
-        if (terminado) return;
-      }
-    }
-  } catch (error) {
-    console.warn('Lectura QR:', error);
-  }
-  setTimeout(buclesDeEscaneo, 150);
-}
-
-/** Devuelve los textos de los QR que se ven en el cuadro actual. */
-async function leerQRDelVideo(video) {
-  if (qrEscaneo.detector) {
-    const encontrados = await qrEscaneo.detector.detect(video);
-    return encontrados.map((x) => x.rawValue);
-  }
-  // jsQR trabaja con una imagen: se copia el cuadro a un lienzo (achicado para ir rápido)
-  const escala = Math.min(1, 720 / Math.max(video.videoWidth, video.videoHeight));
-  const ancho = Math.round(video.videoWidth * escala);
-  const alto = Math.round(video.videoHeight * escala);
-  if (!qrEscaneo.lienzo) qrEscaneo.lienzo = document.createElement('canvas');
-  const lienzo = qrEscaneo.lienzo;
-  lienzo.width = ancho;
-  lienzo.height = alto;
-  const g = lienzo.getContext('2d', { willReadFrequently: true });
-  g.drawImage(video, 0, 0, ancho, alto);
-  const imagen = g.getImageData(0, 0, ancho, alto);
-  const resultado = window.jsQR(imagen.data, ancho, alto, { inversionAttempts: 'dontInvert' });
-  return resultado ? [resultado.data] : [];
-}
-
-/**
- * Guarda una parte leída. Junta por "lote" (cada envío tiene el suyo).
- * Cuando un lote está completo, aplica los datos. Devuelve true al terminar.
- */
-async function recibirParteQR(texto) {
-  const parte = TucankitCore.leerParteQR(texto);
-  if (!parte) return false;
-  const yaEstaba = qrEscaneo.lotes.has(parte.lote) && qrEscaneo.lotes.get(parte.lote).has(parte.numero);
-  const lote = yaEstaba ? qrEscaneo.lotes.get(parte.lote) : registrarParteQR(parte);
-  $('qr-barra').style.width = `${Math.round((lote.size / parte.total) * 100)}%`;
-  $('qr-estado').textContent = t('qrRecibidas', { recibidas: lote.size, total: parte.total });
-  const completo = TucankitCore.unirPartesQR([...lote.values()]);
-  if (completo == null) return false;
-
-  qrEscaneo.activo = false;
-  detenerCamara();
-  $('dialogo-qr-escanear').close();
-  await recibirDatosQR(completo);
-  return true;
-}
-
-function detenerCamara() {
-  qrEscaneo.activo = false;
-  if (qrEscaneo.flujo) qrEscaneo.flujo.getTracks().forEach((pista) => pista.stop());
-  qrEscaneo.flujo = null;
-  $('qr-video').srcObject = null;
-}
-
-function cerrarEscanearQR() {
-  detenerCamara();
-  if ($('dialogo-qr-escanear').open) $('dialogo-qr-escanear').close();
 }
 
 /* =========================================================
@@ -3222,6 +3035,37 @@ function iniciarDrive() {
 }
 
 /* =========================================================
+   11d. BIENVENIDA: ventanas que explican la app la primera vez
+   ========================================================= */
+let pasoBienvenida = 0;
+
+function abrirBienvenida(paso = 0) {
+  pasoBienvenida = paso;
+  dibujarBienvenida();
+  if (!$('dialogo-bienvenida').open) $('dialogo-bienvenida').showModal();
+}
+
+function dibujarBienvenida() {
+  const pasos = t('bienvenida');
+  const p = pasos[pasoBienvenida];
+  const ultimo = pasoBienvenida === pasos.length - 1;
+  $('bienvenida-icono').textContent = p.icono;
+  $('bienvenida-titulo').textContent = p.titulo;
+  $('bienvenida-texto').innerHTML = p.texto; // texto fijo de la app (no viene de usuarios)
+  $('bienvenida-puntos').replaceChildren(...pasos.map((_, i) => crear('span', i === pasoBienvenida ? 'activo' : '')));
+  $('bienvenida-atras').hidden = pasoBienvenida === 0;
+  $('bienvenida-siguiente').textContent = t(ultimo ? 'irAjustesFinal' : 'siguiente');
+  $('bienvenida-saltar').textContent = t(ultimo ? 'ahoraNoGuia' : 'saltarGuia');
+}
+
+/** Cierra la guía y recuerda que ya se vio (no vuelve a salir sola). */
+async function terminarBienvenida(irAjustes = false) {
+  if ($('dialogo-bienvenida').open) $('dialogo-bienvenida').close();
+  try { await guardarLocales({ bienvenidaVista: true }); } catch (error) { console.error(error); }
+  if (irAjustes) abrirSeccionAjustes('negocio');
+}
+
+/* =========================================================
    12. INSTALACIÓN, USO SIN INTERNET Y ALMACENAMIENTO
    ========================================================= */
 let eventoInstalacion = null;
@@ -3310,8 +3154,17 @@ function conectarEventos() {
   document.querySelectorAll('.navegacion button').forEach((b) => b.addEventListener('click', () => irA(b.dataset.vista)));
   document.querySelectorAll('.pestana').forEach((b) => b.addEventListener('click', () => { estado.pestana = b.dataset.pestana; dibujarAgenda(); }));
   $('btn-ajustes').addEventListener('click', () => mostrarVista('ajustes'));
+  // Bienvenida
+  $('bienvenida-atras').addEventListener('click', () => { pasoBienvenida -= 1; dibujarBienvenida(); });
+  $('bienvenida-siguiente').addEventListener('click', () => {
+    if (pasoBienvenida < t('bienvenida').length - 1) { pasoBienvenida += 1; dibujarBienvenida(); } else terminarBienvenida(true);
+  });
+  $('bienvenida-saltar').addEventListener('click', () => terminarBienvenida(false));
+  $('dialogo-bienvenida').addEventListener('cancel', (e) => { e.preventDefault(); terminarBienvenida(false); });
+  $('btn-ver-guia').addEventListener('click', () => abrirBienvenida(0));
+  $('btn-inicio').addEventListener('click', () => { estado.pestana = 'manana'; estado.filtroTipo = 'todos'; irA('agenda'); });
   $('btn-volver').addEventListener('click', () => irA(estado.vistaAnterior === 'ajustes' ? 'agenda' : estado.vistaAnterior));
-  $('aviso-negocio-ir').addEventListener('click', () => mostrarVista('ajustes'));
+  $('aviso-negocio-ir').addEventListener('click', () => abrirSeccionAjustes('negocio'));
   $('btn-nueva').addEventListener('click', () => (estado.vista === 'clientes' ? abrirFormularioCliente() : abrirFormularioRecordatorio()));
 
   // Tarjetas (agenda e historial)
@@ -3409,25 +3262,13 @@ function conectarEventos() {
   $('rec-detalle').addEventListener('input', dibujarProductosFormulario);
 
   // Copias y borrar todo
+  $('btn-compartir').addEventListener('click', compartirCopia);
   $('btn-descargar').addEventListener('click', descargarCopia);
   $('aviso-copia-descargar').addEventListener('click', descargarCopia);
   $('aviso-copia-cerrar').addEventListener('click', () => { avisoCopiaCerrado = true; revisarAvisos(); });
   $('btn-restaurar').addEventListener('click', () => $('archivo-restaurar').click());
   $('archivo-restaurar').addEventListener('change', restaurarCopia);
   $('btn-borrar-todo').addEventListener('click', borrarTodo);
-
-  // QR
-  $('btn-qr-mostrar').addEventListener('click', abrirMostrarQR);
-  $('qr-generar').addEventListener('click', generarQR);
-  $('qr-mostrar-cerrar').addEventListener('click', cerrarMostrarQR);
-  $('dialogo-qr-mostrar').addEventListener('close', cerrarMostrarQR);
-  $('qr-pausa').addEventListener('click', () => {
-    qrMostrar.pausado = !qrMostrar.pausado;
-    $('qr-pausa').textContent = t(qrMostrar.pausado ? 'qrSeguir' : 'qrPausar');
-  });
-  $('btn-qr-escanear').addEventListener('click', abrirEscanearQR);
-  $('qr-escanear-cerrar').addEventListener('click', cerrarEscanearQR);
-  $('dialogo-qr-escanear').addEventListener('close', detenerCamara);
 
   // Google Drive
   $('btn-drive-conectar').addEventListener('click', conectarDrive);
@@ -3489,7 +3330,7 @@ async function iniciar() {
   }
   mostrarVista('agenda');
   iniciarDrive();
-  revisarQREnDireccion();
+  if (!estado.locales.bienvenidaVista) abrirBienvenida(0);
 }
 
 iniciar();

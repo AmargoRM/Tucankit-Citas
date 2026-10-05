@@ -152,21 +152,10 @@ async function prueba(nombre, fn) {
     assert.equal(datos.recordatorios.length, 2); // el borrado se guarda como marca
   });
 
-  await prueba('QR: comprimir + base64url + partir (con dirección web) + unir en desorden', async () => {
-    // Datos variados (un texto repetido se comprime demasiado y cabría en un solo QR)
-    const original = JSON.stringify(Array.from({ length: 300 }, (_, i) => ({ id: `id-${i * 7919}`, nombre: `Clienta Ñandú ${i}`, monto: i * 1371 % 9973 })));
-    const bytes = await C.comprimir(original);
-    const texto64 = C.aBase64Url(bytes);
-    assert.match(texto64, /^[A-Za-z0-9_-]+$/, 'solo caracteres seguros para una dirección web');
-    const partes = C.crearPartesQR(texto64, 'AB12', 'https://amargorm.github.io/Tucankit-Citas/', 200);
-    assert.ok(partes.length > 2, 'debería necesitar varias partes');
-    assert.ok(partes[0].startsWith('https://amargorm.github.io/Tucankit-Citas/#qr=TK4.AB12.1.'));
-    assert.ok(!/\s/.test(partes[0]), 'sin espacios (si no, la cámara no lo reconoce como enlace)');
-    const desordenadas = [...partes].reverse().map(C.leerParteQR);
-    const unido = C.unirPartesQR(desordenadas);
-    assert.equal(await C.descomprimir(C.deBase64Url(unido)), original);
-    assert.equal(C.unirPartesQR(desordenadas.slice(1)), null, 'si falta una parte no debe unir');
-    assert.equal(C.leerParteQR('https://otra-cosa.com'), null);
+  await prueba('WhatsApp: enlaces para celular, WhatsApp Web y app de escritorio', () => {
+    assert.equal(C.enlaceWhatsApp('50688881111', 'Hola ¿qué tal?', 'app'), 'https://wa.me/50688881111?text=Hola%20%C2%BFqu%C3%A9%20tal%3F');
+    assert.ok(C.enlaceWhatsApp('506', 'x', 'web').startsWith('https://web.whatsapp.com/send?phone=506&text='));
+    assert.ok(C.enlaceWhatsApp('506', 'x', 'escritorio').startsWith('whatsapp://send?phone=506&text='));
   });
 
   console.log(`\n${pasadas} pruebas pasaron.`);

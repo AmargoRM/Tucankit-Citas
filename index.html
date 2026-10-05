@@ -23,7 +23,8 @@
 
   <!-- ===== Encabezado con la marca ===== -->
   <header class="encabezado">
-    <div class="marca">
+    <!-- Tocar el logo vuelve al inicio (la agenda) -->
+    <button id="btn-inicio" class="marca marca-boton" type="button" data-t-aria="irAlInicio">
       <svg class="marca-logo" viewBox="0 0 100 100" aria-hidden="true">
         <rect width="100" height="100" rx="22" fill="#1c1d21"/>
         <polygon points="20,24 70,24 86,36 70,40 20,40" fill="#f28c1b"/>
@@ -35,7 +36,7 @@
         <span class="marca-nombre">Tucankit</span>
         <span class="marca-producto" data-t="nombreProducto"></span>
       </div>
-    </div>
+    </button>
     <div class="encabezado-acciones">
       <button id="btn-instalar" class="boton boton-acento boton-chico" type="button" hidden data-t="instalar"></button>
       <button id="btn-ajustes" class="boton boton-fantasma boton-chico" type="button" data-t="ajustes"></button>
@@ -132,6 +133,7 @@
         <input id="buscar-cliente" type="search" autocomplete="off" data-t-placeholder="buscarCliente">
       </label>
       <div id="filtro-etiquetas" class="fichas-filtro" role="group"></div>
+      <p id="ayuda-grupos" class="ayuda ayuda-grupos" data-t="ayudaGrupos" hidden></p>
       <div class="fila-titulo">
         <h2 id="titulo-clientes" class="titulo-lista"></h2>
         <button id="btn-seleccionar" class="enlace" type="button" data-t="seleccionarVarios"></button>
@@ -203,7 +205,8 @@
       <div id="grupo-lista" class="lista lista-compacta"></div>
     </section>
 
-    <!-- ===== AJUSTES ===== -->
+    <!-- ===== AJUSTES =====
+         Cada sección se abre y cierra tocando su título (<details>). -->
     <section id="vista-ajustes" class="vista" hidden>
       <div class="vista-cabecera">
         <button id="btn-volver" class="boton boton-fantasma-oscuro boton-chico" type="button" data-t="volver"></button>
@@ -217,8 +220,8 @@
       </div>
 
       <form id="form-ajustes" novalidate>
-        <div class="tarjeta">
-          <h3 data-t="ajustesNegocio"></h3>
+        <details class="tarjeta seccion" data-seccion="negocio">
+          <summary><span aria-hidden="true">🏪</span><span data-t="ajustesNegocio"></span></summary>
           <label class="campo">
             <span data-t="campoNegocio"></span>
             <input id="aj-negocio" type="text" maxlength="80" autocomplete="organization" data-t-placeholder="ejemploNegocio">
@@ -252,52 +255,17 @@
             <span data-t="campoPagoHabitual"></span>
             <input id="aj-pago" type="text" maxlength="120" autocomplete="off" data-t-placeholder="ejemploPago">
           </label>
-        </div>
+        </details>
 
-        <div class="tarjeta">
-          <h3 data-t="horarioTitulo"></h3>
+        <details class="tarjeta seccion" data-seccion="horario">
+          <summary><span aria-hidden="true">🕘</span><span data-t="horarioTitulo"></span></summary>
           <p class="ayuda" data-t="horarioExplicacion"></p>
           <div id="horario-dias" class="horario-dias"></div>
           <p class="ayuda"><strong data-t="horarioQuedaAsi"></strong> <span id="horario-texto"></span></p>
-        </div>
+        </details>
 
-        <div class="tarjeta">
-          <h3 data-t="ajustesWhatsapp"></h3>
-          <label class="campo">
-            <span data-t="campoWhatsappComputadora"></span>
-            <select id="aj-whatsapp-computadora">
-              <option value="web" data-t="opcionWhatsappWeb"></option>
-              <option value="app" data-t="opcionWhatsappApp"></option>
-            </select>
-          </label>
-          <label class="interruptor">
-            <input id="aj-enlaces" type="checkbox">
-            <span data-t="campoEnlacesRespuesta"></span>
-          </label>
-          <p class="ayuda" data-t="ayudaEnlacesRespuesta"></p>
-          <label class="campo" id="campo-telnegocio">
-            <span data-t="campoTelefonoNegocio"></span>
-            <input id="aj-telnegocio" type="tel" inputmode="tel" maxlength="25" autocomplete="tel" data-t-placeholder="ejemploTelefono">
-            <small id="aj-telnegocio-final" class="numero-final"></small>
-            <small class="error" hidden></small>
-          </label>
-        </div>
-
-        <div class="tarjeta">
-          <h3 data-t="ajustesFirma"></h3>
-          <label class="interruptor">
-            <input id="aj-firma-activa" type="checkbox">
-            <span data-t="campoFirmaActiva"></span>
-          </label>
-          <label class="campo">
-            <span data-t="campoFirma"></span>
-            <input id="aj-firma" type="text" maxlength="160" autocomplete="off" data-t-placeholder="ejemploFirma">
-            <small class="ayuda" data-t="ayudaFirma"></small>
-          </label>
-        </div>
-
-        <div class="tarjeta">
-          <h3 data-t="ajustesMensaje"></h3>
+        <details class="tarjeta seccion" data-seccion="mensajes">
+          <summary><span aria-hidden="true">💬</span><span data-t="ajustesMensaje"></span></summary>
           <p class="ayuda" data-t="ayudaPlantillas"></p>
           <div id="plantilla-tipos" class="fichas-filtro" role="group"></div>
 
@@ -346,21 +314,58 @@
             <span class="vista-previa-titulo" data-t="vistaPrevia"></span>
             <p id="vista-previa-texto" class="burbuja"></p>
           </div>
-        </div>
+        </details>
 
-        <div class="tarjeta">
-          <h3 data-t="ajustesDispositivo"></h3>
+        <details class="tarjeta seccion" data-seccion="firma">
+          <summary><span aria-hidden="true">✍️</span><span data-t="ajustesFirma"></span></summary>
+          <label class="interruptor">
+            <input id="aj-firma-activa" type="checkbox">
+            <span data-t="campoFirmaActiva"></span>
+          </label>
+          <label class="campo">
+            <span data-t="campoFirma"></span>
+            <input id="aj-firma" type="text" maxlength="160" autocomplete="off" data-t-placeholder="ejemploFirma">
+            <small class="ayuda" data-t="ayudaFirma"></small>
+          </label>
+        </details>
+
+        <details class="tarjeta seccion" data-seccion="whatsapp">
+          <summary><span aria-hidden="true">📲</span><span data-t="ajustesWhatsapp"></span></summary>
+          <label class="campo">
+            <span data-t="campoWhatsappComputadora"></span>
+            <select id="aj-whatsapp-computadora">
+              <option value="web" data-t="opcionWhatsappWeb"></option>
+              <option value="app" data-t="opcionWhatsappApp"></option>
+            </select>
+          </label>
+          <label class="interruptor">
+            <input id="aj-enlaces" type="checkbox">
+            <span data-t="campoEnlacesRespuesta"></span>
+          </label>
+          <p class="ayuda" data-t="ayudaEnlacesRespuesta"></p>
+          <label class="campo" id="campo-telnegocio">
+            <span data-t="campoTelefonoNegocio"></span>
+            <input id="aj-telnegocio" type="tel" inputmode="tel" maxlength="25" autocomplete="tel" data-t-placeholder="ejemploTelefono">
+            <small id="aj-telnegocio-final" class="numero-final"></small>
+            <small class="error" hidden></small>
+          </label>
+        </details>
+
+        <details class="tarjeta seccion" data-seccion="dispositivo">
+          <summary><span aria-hidden="true">📱</span><span data-t="ajustesDispositivo"></span></summary>
           <label class="campo">
             <span data-t="campoNombreDispositivo"></span>
             <input id="aj-dispositivo" type="text" maxlength="60" autocomplete="off" data-t-placeholder="ejemploNombreDispositivo">
             <small class="ayuda" data-t="ayudaNombreDispositivo"></small>
           </label>
-        </div>
+        </details>
       </form>
 
-      <!-- Servicios y productos: se guardan al instante (no dependen del botón Guardar) -->
-      <div class="tarjeta">
-        <h3 data-t="productosTitulo"></h3>
+      <!-- De aquí para abajo, todo se guarda al instante (no depende del botón Guardar) -->
+      <p class="ayuda separador-ajustes" data-t="ajustesAlInstante"></p>
+
+      <details class="tarjeta seccion" data-seccion="productos">
+        <summary><span aria-hidden="true">🧾</span><span data-t="productosTitulo"></span></summary>
         <p class="ayuda" data-t="productosExplicacion"></p>
         <div id="lista-productos" class="lista lista-compacta"></div>
         <div class="fila-producto">
@@ -368,19 +373,23 @@
           <input id="producto-precio" type="text" inputmode="decimal" maxlength="20" autocomplete="off" data-t-placeholder="ejemploPrecio" aria-label="Precio">
           <button id="producto-agregar" class="boton boton-secundario boton-chico" type="button" data-t="agregar"></button>
         </div>
-      </div>
+      </details>
 
-      <div class="tarjeta">
-        <h3 data-t="qrTitulo"></h3>
-        <p class="ayuda" data-t="qrExplicacion"></p>
+      <details class="tarjeta seccion" data-seccion="copia">
+        <summary><span aria-hidden="true">💾</span><span data-t="copiaTitulo"></span></summary>
+        <p class="ayuda" data-t="copiaExplicacion"></p>
+        <p class="ayuda" id="copia-ultima"></p>
         <div class="botones-columna">
-          <button id="btn-qr-mostrar" class="boton boton-accion boton-ancho" type="button" data-t="qrMostrar"></button>
-          <button id="btn-qr-escanear" class="boton boton-secundario boton-ancho" type="button" data-t="qrEscanear"></button>
+          <button id="btn-compartir" class="boton boton-accion boton-ancho" type="button" data-t="compartirCopia"></button>
+          <button id="btn-descargar" class="boton boton-secundario boton-ancho" type="button" data-t="descargarCopia"></button>
+          <button id="btn-restaurar" class="boton boton-secundario boton-ancho" type="button" data-t="restaurarCopia"></button>
         </div>
-      </div>
+        <p class="ayuda" data-t="copiaComoPasar"></p>
+        <input id="archivo-restaurar" type="file" accept="application/json,.json,text/plain,.txt" hidden>
+      </details>
 
-      <div class="tarjeta">
-        <h3 data-t="driveTitulo"></h3>
+      <details class="tarjeta seccion" data-seccion="drive">
+        <summary><span aria-hidden="true">☁️</span><span data-t="driveTitulo"></span></summary>
         <p class="ayuda" data-t="driveExplicacion"></p>
         <p id="drive-estado" class="drive-estado"></p>
         <p id="drive-detalle" class="ayuda"></p>
@@ -389,31 +398,26 @@
           <button id="btn-drive-sincronizar" class="boton boton-accion boton-ancho" type="button" data-t="driveSincronizarAhora" hidden></button>
           <button id="btn-drive-desconectar" class="boton boton-fantasma-oscuro boton-ancho" type="button" data-t="driveDesconectar" hidden></button>
         </div>
-      </div>
+      </details>
 
-      <div class="tarjeta">
-        <h3 data-t="copiaTitulo"></h3>
-        <p class="ayuda" data-t="copiaExplicacion"></p>
-        <p class="ayuda" id="copia-ultima"></p>
-        <div class="botones-columna">
-          <button id="btn-descargar" class="boton boton-accion boton-ancho" type="button" data-t="descargarCopia"></button>
-          <button id="btn-restaurar" class="boton boton-secundario boton-ancho" type="button" data-t="restaurarCopia"></button>
-        </div>
-        <input id="archivo-restaurar" type="file" accept="application/json,.json" hidden>
-      </div>
-
-      <div class="tarjeta">
-        <h3 data-t="copiasAutoTitulo"></h3>
+      <details class="tarjeta seccion" data-seccion="copias-auto">
+        <summary><span aria-hidden="true">🕓</span><span data-t="copiasAutoTitulo"></span></summary>
         <p class="ayuda" data-t="copiasAutoExplicacion"></p>
         <button id="btn-volver-sync" class="boton boton-secundario boton-ancho" type="button" data-t="volverAnteriorSync" hidden></button>
         <div id="copias-auto" class="lista lista-compacta"></div>
-      </div>
+      </details>
 
-      <div class="tarjeta tarjeta-peligro">
-        <h3 data-t="peligroTitulo"></h3>
+      <details class="tarjeta seccion" data-seccion="guia">
+        <summary><span aria-hidden="true">📖</span><span data-t="guiaTitulo"></span></summary>
+        <p class="ayuda" data-t="guiaExplicacion"></p>
+        <button id="btn-ver-guia" class="boton boton-secundario boton-ancho" type="button" data-t="verGuia"></button>
+      </details>
+
+      <details class="tarjeta seccion tarjeta-peligro" data-seccion="borrar">
+        <summary><span aria-hidden="true">⚠️</span><span data-t="peligroTitulo"></span></summary>
         <p class="ayuda" data-t="peligroExplicacion"></p>
         <button id="btn-borrar-todo" class="boton boton-peligro boton-ancho" type="button" data-t="borrarTodo"></button>
-      </div>
+      </details>
     </section>
   </main>
 
@@ -561,44 +565,18 @@
     </form>
   </dialog>
 
-  <!-- ===== Ventana para MOSTRAR los códigos QR ===== -->
-  <dialog id="dialogo-qr-mostrar" class="dialogo" aria-labelledby="qr-mostrar-titulo">
+  <!-- ===== Bienvenida: ventanas que explican la app la primera vez ===== -->
+  <dialog id="dialogo-bienvenida" class="dialogo dialogo-chico bienvenida" aria-labelledby="bienvenida-titulo">
     <div class="dialogo-cuerpo">
-      <h2 id="qr-mostrar-titulo" data-t="qrMostrar"></h2>
-      <div id="qr-opciones">
-        <p class="etiqueta-campo" data-t="qrQueEnviar"></p>
-        <label class="interruptor"><input type="radio" name="qr-alcance" value="todo" checked><span data-t="qrTodo"></span></label>
-        <label class="interruptor"><input type="radio" name="qr-alcance" value="30"><span data-t="qr30Dias"></span></label>
-        <button id="qr-generar" class="boton boton-accion boton-ancho" type="button" data-t="qrGenerar"></button>
-      </div>
-      <div id="qr-mostrando" hidden>
-        <p class="ayuda" data-t="qrInstruccionMostrar"></p>
-        <canvas id="qr-lienzo" class="qr-lienzo" width="340" height="340"></canvas>
-        <p id="qr-contador" class="qr-contador"></p>
-        <p id="qr-varios-aviso" class="ayuda" hidden></p>
-        <button id="qr-pausa" class="boton boton-fantasma-oscuro boton-chico" type="button"></button>
-      </div>
-      <p id="qr-mostrar-error" class="error" hidden></p>
+      <div id="bienvenida-icono" class="bienvenida-icono" aria-hidden="true"></div>
+      <h2 id="bienvenida-titulo"></h2>
+      <div id="bienvenida-texto" class="bienvenida-texto"></div>
+      <div id="bienvenida-puntos" class="bienvenida-puntos" aria-hidden="true"></div>
       <div class="dialogo-acciones">
-        <button id="qr-mostrar-cerrar" class="boton boton-fantasma-oscuro" type="button" data-t="cerrar"></button>
+        <button id="bienvenida-atras" class="boton boton-fantasma-oscuro" type="button" data-t="atras"></button>
+        <button id="bienvenida-siguiente" class="boton boton-accion" type="button"></button>
       </div>
-    </div>
-  </dialog>
-
-  <!-- ===== Ventana para ESCANEAR los códigos QR ===== -->
-  <dialog id="dialogo-qr-escanear" class="dialogo" aria-labelledby="qr-escanear-titulo">
-    <div class="dialogo-cuerpo">
-      <h2 id="qr-escanear-titulo" data-t="qrEscanear"></h2>
-      <p class="ayuda" data-t="qrInstruccionEscanear"></p>
-      <div class="qr-camara">
-        <video id="qr-video" playsinline muted></video>
-      </div>
-      <div class="qr-progreso" aria-hidden="true"><div id="qr-barra"></div></div>
-      <p id="qr-estado" class="qr-contador" role="status"></p>
-      <p id="qr-escanear-error" class="aviso aviso-peligro" hidden></p>
-      <div class="dialogo-acciones">
-        <button id="qr-escanear-cerrar" class="boton boton-fantasma-oscuro" type="button" data-t="cerrar"></button>
-      </div>
+      <button id="bienvenida-saltar" class="enlace bienvenida-saltar" type="button" data-t="saltarGuia"></button>
     </div>
   </dialog>
 

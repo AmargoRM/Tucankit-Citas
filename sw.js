@@ -10,7 +10,7 @@
    hay que subir el número de VERSION de aquí abajo (1 → 2 → 3...).
    Si no se sube, los teléfonos seguirán mostrando la versión vieja.
    ========================================================= */
-const VERSION = 15;
+const VERSION = 16;
 const NOMBRE_CACHE = `tucankit-citas-v${VERSION}`;
 
 /** Archivos que se guardan para usar sin internet. */
@@ -26,9 +26,7 @@ const ARCHIVOS = [
   'icons/icon-192.png',
   'icons/icon-512.png',
   'icons/icon-maskable-512.png',
-  'icons/apple-touch-icon.png',
-  'vendor/qrcode-generator/qrcode.js',
-  'vendor/jsqr/jsQR.js'
+  'icons/apple-touch-icon.png'
 ];
 
 /**

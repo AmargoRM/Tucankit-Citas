@@ -26,6 +26,6 @@ Estas reglas valen para cualquier persona o asistente que modifique este reposit
 
 - `core.js`: funciones puras (fechas, teléfonos, plantillas, montos, mezcla de datos). No tocan
   la pantalla ni IndexedDB; se pueden reutilizar en una extensión de Chrome.
-- `app.js`: pantalla, IndexedDB, copias, QR, Drive e instalación. Textos de pantalla en `TEXTOS`.
+- `app.js`: pantalla, IndexedDB, copias, Drive, bienvenida e instalación. Textos de pantalla en `TEXTOS`.
 - Fechas: siempre texto `AAAA-MM-DD` y horas `HH:MM`; nunca `new Date("AAAA-MM-DD")` (UTC).
-- Bibliotecas externas: copiadas en `vendor/` con su licencia (solo MIT o Apache 2.0).
+- Bibliotecas externas: si alguna vez hacen falta, se copian en `vendor/` con su licencia (solo MIT o Apache 2.0). Hoy no se usa ninguna.

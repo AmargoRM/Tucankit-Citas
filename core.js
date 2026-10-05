@@ -10,7 +10,7 @@
      2. Plantillas de mensaje (constructor con clics) y montos de dinero
      3. Fechas y horas
      4. Teléfonos y enlace de WhatsApp
-     5. Mezcla segura de datos (sincronización) y empaquetado para QR
+     5. Mezcla segura de datos (sincronización)
 
    Cómo se usa:
      - En una página: <script src="core.js"></script> y luego
@@ -471,10 +471,13 @@
    *    abre la app de WhatsApp directamente.
    *  - destino "web" (computadora): https://web.whatsapp.com/send?phone=...&text=...
    *    abre WhatsApp Web sin pasar por la página intermedia de api.whatsapp.com.
+   *  - destino "escritorio" (computadora con WhatsApp instalado): whatsapp://send?...
+   *    abre directo la app de escritorio, siempre en la misma ventana.
    */
   function enlaceWhatsApp(numero, mensaje, destino = 'app') {
     const texto = encodeURIComponent(mensaje);
     if (destino === 'web') return `https://web.whatsapp.com/send?phone=${numero}&text=${texto}`;
+    if (destino === 'escritorio') return `whatsapp://send?phone=${numero}&text=${texto}`;
     return `https://wa.me/${numero}?text=${texto}`;
   }
 
@@ -485,7 +488,7 @@
   }
 
   /* =========================================================
-     5. MEZCLA SEGURA DE DATOS (para QR y Google Drive)
+     5. MEZCLA SEGURA DE DATOS (copias de seguridad y Google Drive)
      Cada registro (cliente, recordatorio, etiqueta, producto) tiene:
        - id: código único
        - actualizadoEn: cuándo se cambió por última vez (milisegundos)
@@ -602,85 +605,6 @@
     return { datos, resumen };
   }
 
-  /* ---------- Empaquetar datos para QR: comprimir + base64url ---------- */
-
-  /** Comprime un texto con gzip. Devuelve bytes (Uint8Array). */
-  async function comprimir(texto) {
-    const flujo = new Blob([texto]).stream().pipeThrough(new CompressionStream('gzip'));
-    return new Uint8Array(await new Response(flujo).arrayBuffer());
-  }
-
-  /** Descomprime bytes gzip y devuelve el texto. */
-  async function descomprimir(bytes) {
-    const flujo = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-    return new Response(flujo).text();
-  }
-
-  /*
-   * base64url: convierte bytes en letras, números, "-" y "_". Son caracteres
-   * que se pueden poner dentro de una dirección web sin que se rompan, así
-   * el QR funciona también con la cámara normal del celular.
-   */
-  function aBase64Url(bytes) {
-    let binario = '';
-    for (let i = 0; i < bytes.length; i += 1) binario += String.fromCharCode(bytes[i]);
-    const b64 = typeof btoa === 'function' ? btoa(binario) : Buffer.from(binario, 'binary').toString('base64');
-    return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  }
-
-  function deBase64Url(texto) {
-    if (!/^[A-Za-z0-9_-]*$/.test(texto)) throw new Error('Texto inválido');
-    let b64 = texto.replace(/-/g, '+').replace(/_/g, '/');
-    while (b64.length % 4) b64 += '=';
-    const binario = typeof atob === 'function' ? atob(b64) : Buffer.from(b64, 'base64').toString('binary');
-    const bytes = new Uint8Array(binario.length);
-    for (let i = 0; i < binario.length; i += 1) bytes[i] = binario.charCodeAt(i);
-    return bytes;
-  }
-
-  /** Letras de datos por código QR. */
-  const LETRAS_POR_QR = 900;
-
-  /**
-   * Parte los datos en varios códigos QR. Cada parte es una dirección web:
-   *   <direccion de la app>#qr=TK4.<lote>.<número>.<total>.<datos>
-   * Así, si se escanea con la cámara normal, el celular ofrece abrir la app.
-   * Lo que va después de "#" nunca se envía a internet: queda en el dispositivo.
-   * El lote identifica el envío, para no mezclar partes de dos envíos distintos.
-   */
-  function crearPartesQR(texto64, lote, direccionApp = '', letrasPorQR = LETRAS_POR_QR) {
-    const total = Math.max(1, Math.ceil(texto64.length / letrasPorQR));
-    const partes = [];
-    for (let n = 0; n < total; n += 1) {
-      partes.push(`${direccionApp}#qr=TK4.${lote}.${n + 1}.${total}.${texto64.slice(n * letrasPorQR, (n + 1) * letrasPorQR)}`);
-    }
-    return partes;
-  }
-
-  /**
-   * Lee una parte escaneada (con o sin la dirección adelante).
-   * Devuelve { lote, numero, total, datos } o null si no es nuestra.
-   */
-  function leerParteQR(texto) {
-    const m = /TK4\.([0-9A-Z]{4,8})\.(\d{1,4})\.(\d{1,4})\.([A-Za-z0-9_-]*)\s*$/.exec(String(texto || ''));
-    if (!m) return null;
-    const numero = Number(m[2]);
-    const total = Number(m[3]);
-    if (numero < 1 || numero > total) return null;
-    return { lote: m[1], numero, total, datos: m[4] };
-  }
-
-  /** Une las partes (en cualquier orden). Devuelve el texto completo o null si faltan. */
-  function unirPartesQR(partes) {
-    if (!partes.length) return null;
-    const total = partes[0].total;
-    const porNumero = new Map(partes.map((p) => [p.numero, p.datos]));
-    if (porNumero.size !== total) return null;
-    let texto = '';
-    for (let n = 1; n <= total; n += 1) texto += porNumero.get(n);
-    return texto;
-  }
-
   /* ---------- Lo que este archivo ofrece hacia afuera ---------- */
   const TucankitCore = {
     IDIOMAS,
@@ -733,15 +657,7 @@
     mezclarLista,
     mezclarAjustes,
     limpiarBorrados,
-    mezclarDatos,
-    comprimir,
-    descomprimir,
-    aBase64Url,
-    deBase64Url,
-    LETRAS_POR_QR,
-    crearPartesQR,
-    leerParteQR,
-    unirPartesQR
+    mezclarDatos
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = TucankitCore;
