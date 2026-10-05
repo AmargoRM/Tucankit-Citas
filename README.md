@@ -24,36 +24,35 @@ La app **no envía mensajes sola**: arma el mensaje y abre WhatsApp con el texto
 | `icons/` | Íconos de la app. |
 | `tools/generar_iconos.py` | Programa que dibuja los íconos (no se publica como parte de la app, pero no molesta). |
 
-## Probarla en su computadora
+## Publicarla gratis con GitHub Pages (sin terminal)
 
-1. Abra una terminal en la carpeta del proyecto.
-2. Ejecute:
+1. En GitHub, abra el repositorio → **Settings** (Configuración) → **Pages** (menú de la izquierda).
+2. En **Build and deployment → Source**, elija **Deploy from a branch**.
+3. En **Branch**, elija la rama `claude/clever-bohr-n7ztvm` y la carpeta **`/ (root)`**. Toque **Save**.
+4. Espere 1 o 2 minutos y recargue esa página de Settings → Pages. Arriba aparecerá la dirección:
+   **<https://amargorm.github.io/Tucankit-Citas/>**
+5. Abra esa dirección en la computadora o en el celular. Ya tiene `https://`, así que funciona
+   el modo sin internet y se puede instalar.
 
-   ```
-   python3 -m http.server 8000
-   ```
+Cada vez que se suban cambios a esa rama, GitHub vuelve a publicar solo (tarda 1 o 2 minutos).
 
-3. Abra en el navegador: <http://localhost:8000>
-4. Para detenerlo, vuelva a la terminal y presione `Ctrl + C`.
+> El archivo vacío `.nojekyll` le indica a GitHub Pages que publique los archivos tal cual.
+> No lo borre.
 
-> **Importante:** no abra `index.html` con doble clic (dirección `file://...`).
-> El service worker (modo sin internet e instalación) **solo funciona en `localhost` o con `https://`**.
-> Con doble clic la app puede verse, pero no funcionará sin internet ni se podrá instalar.
+## Probarla en una computadora con terminal (opcional)
 
-### Probar en el celular
+```
+python3 -m http.server 8000
+```
 
-El celular necesita `https://` para instalar la app. Lo más simple es publicarla
-(ver abajo) y abrir la dirección de Cloudflare Pages en el celular.
+y abrir <http://localhost:8000>. No abra `index.html` con doble clic: el modo sin internet
+y la instalación **solo funcionan en `localhost` o con `https://`**.
 
-## Publicarla en Cloudflare Pages
+## Publicarla en Cloudflare Pages (más adelante)
 
-1. Suba este repositorio a GitHub (ya está).
-2. En Cloudflare: **Workers & Pages → Create → Pages → Connect to Git** y elija el repositorio.
-3. Configuración de compilación:
-   - Framework preset: **None**
-   - Build command: *(dejar vacío)*
-   - Build output directory: **`/`** (la carpeta raíz)
-4. Guardar y publicar. Cloudflare le dará una dirección `https://...pages.dev`.
+1. En Cloudflare: **Workers & Pages → Create → Pages → Connect to Git** y elija el repositorio.
+2. Framework preset: **None** · Build command: *(vacío)* · Build output directory: **`/`**
+3. Guardar y publicar. Cloudflare le dará una dirección `https://...pages.dev`.
 
 ## ⚠️ Al publicar cambios: subir la versión
 
