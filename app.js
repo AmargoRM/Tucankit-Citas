@@ -14,6 +14,7 @@
      9. Envío en fila a un grupo
     10. Ajustes, plantillas y constructor con clics
     11. Copias de seguridad, copias automáticas y borrar todo
+   11b. Pasar datos por código QR
     12. Instalación, uso sin internet y almacenamiento
     13. Inicio de la app
    (Fechas, teléfonos, plantillas, montos y la mezcla segura están en core.js)
@@ -290,6 +291,30 @@ const TEXTOS = {
     confirmarBorrarTexto: 'Se eliminarán {clientes} clientes y {recordatorios} recordatorios.\n\nSi sincroniza, también se borrarán en sus otros dispositivos. Antes se guarda una copia automática.',
     siBorrar: 'Sí, borrar todo',
     todoBorrado: 'Se borraron todos los datos.',
+
+    // Pasar datos por QR
+    qrTitulo: 'Pasar datos a otro dispositivo',
+    qrExplicacion: 'Sin internet: un dispositivo muestra códigos QR y el otro los escanea con la cámara. Los datos se mezclan sin borrar lo que ya tiene el otro.',
+    qrMostrar: 'Mostrar QR',
+    qrEscanear: 'Escanear QR',
+    qrQueEnviar: '¿Qué quiere enviar?',
+    qrTodo: 'Todo',
+    qr30Dias: 'Solo próximos 30 días y sus clientes',
+    qrGenerar: 'Generar códigos',
+    qrInstruccionMostrar: 'Apunte la cámara del otro dispositivo a esta pantalla. Si hay varios códigos, pasan solos: déjela apuntando hasta que termine.',
+    qrContador: 'QR {numero} de {total}',
+    qrPausar: 'Pausar',
+    qrSeguir: 'Seguir',
+    qrInstruccionEscanear: 'Apunte la cámara a los códigos del otro dispositivo. Se pueden leer en cualquier orden.',
+    qrBuscando: 'Buscando códigos…',
+    qrRecibidas: 'Recibidos {recibidas} de {total}',
+    qrAplicando: 'Aplicando los datos…',
+    qrListo: 'Datos recibidos',
+    qrInvalido: 'Los códigos se leyeron pero los datos no son válidos. No se cambió nada.',
+    qrSinPermiso: 'La app no tiene permiso para usar la cámara. Puede darle permiso en los ajustes del navegador, o pasar los datos con Google Drive o con la copia de seguridad.',
+    qrSinCamara: 'No se encontró una cámara en este dispositivo. Pase los datos con Google Drive o con la copia de seguridad.',
+    qrSinCompresion: 'Este navegador es muy antiguo para generar los códigos. Actualícelo, o use Google Drive o la copia de seguridad.',
+    cerrar: 'Cerrar',
 
     // Avisos
     avisoActualizacion: 'Hay una versión nueva. Toque para actualizar.',
@@ -2043,6 +2068,234 @@ function revisarAvisos() {
 }
 
 /* =========================================================
+   11b. PASAR DATOS POR CÓDIGO QR (sin internet)
+   Mostrar: datos → gzip → Base45 → partes "TK3:..." → QR en secuencia.
+   Escanear: cámara → BarcodeDetector (si existe) o jsQR → juntar partes
+   en cualquier orden → mezcla segura.
+   Las bibliotecas (vendor/) se cargan solo al abrir estas ventanas.
+   ========================================================= */
+const MS_POR_QR = 700;
+const qrMostrar = { partes: [], indice: 0, temporizador: null, pausado: false };
+const qrEscaneo = { flujo: null, activo: false, lotes: new Map(), detector: null, lienzo: null };
+
+/** Carga un archivo de vendor/ una sola vez. */
+const scriptsCargados = new Map();
+function cargarScript(ruta) {
+  if (!scriptsCargados.has(ruta)) {
+    scriptsCargados.set(ruta, new Promise((resolver, rechazar) => {
+      const s = document.createElement('script');
+      s.src = ruta;
+      s.onload = resolver;
+      s.onerror = () => { scriptsCargados.delete(ruta); rechazar(new Error('No se pudo cargar ' + ruta)); };
+      document.head.append(s);
+    }));
+  }
+  return scriptsCargados.get(ruta);
+}
+
+/** Datos a enviar: todo (incluye borrados, para que viajen) o solo los próximos 30 días. */
+function paqueteParaQR(alcance) {
+  const paquete = paqueteDatos();
+  if (alcance !== '30') return paquete;
+  const hoy = hoyTexto();
+  const limite = sumarDias(hoy, 30);
+  const recordatorios = recordatoriosActivos().filter((r) => r.fecha >= hoy && r.fecha <= limite);
+  const idsClientes = new Set(recordatorios.map((r) => r.clienteId));
+  const clientes = clientesActivos().filter((c) => idsClientes.has(c.id));
+  const idsEtiquetas = new Set(clientes.flatMap((c) => c.etiquetaIds || []));
+  paquete.datos = { ...paquete.datos, recordatorios, clientes, etiquetas: etiquetasActivas().filter((e) => idsEtiquetas.has(e.id)) };
+  return paquete;
+}
+
+function abrirMostrarQR() {
+  $('qr-opciones').hidden = false;
+  $('qr-mostrando').hidden = true;
+  $('qr-mostrar-error').hidden = true;
+  $('dialogo-qr-mostrar').showModal();
+}
+
+async function generarQR() {
+  try {
+    if (!('CompressionStream' in window)) throw new Error(t('qrSinCompresion'));
+    await cargarScript('vendor/qrcode-generator/qrcode.js');
+    const alcance = document.querySelector('input[name="qr-alcance"]:checked').value;
+    const bytes = await TucankitCore.comprimir(JSON.stringify(paqueteParaQR(alcance)));
+    const lote = Math.random().toString(36).slice(2, 7).toUpperCase().replace(/[^0-9A-Z]/g, 'X').padEnd(5, '0');
+    qrMostrar.partes = TucankitCore.crearPartesQR(TucankitCore.aBase45(bytes), lote);
+    qrMostrar.indice = 0;
+    qrMostrar.pausado = false;
+    $('qr-opciones').hidden = true;
+    $('qr-mostrando').hidden = false;
+    $('qr-pausa').hidden = qrMostrar.partes.length < 2;
+    $('qr-pausa').textContent = t('qrPausar');
+    dibujarQRActual();
+    clearInterval(qrMostrar.temporizador);
+    if (qrMostrar.partes.length > 1) {
+      qrMostrar.temporizador = setInterval(() => {
+        if (qrMostrar.pausado) return;
+        qrMostrar.indice = (qrMostrar.indice + 1) % qrMostrar.partes.length;
+        dibujarQRActual();
+      }, MS_POR_QR);
+    }
+  } catch (error) {
+    console.error(error);
+    $('qr-mostrar-error').textContent = error.message || String(error);
+    $('qr-mostrar-error').hidden = false;
+  }
+}
+
+/** Dibuja el QR actual en el lienzo (cuadritos negros sobre blanco, con margen). */
+function dibujarQRActual() {
+  const texto = qrMostrar.partes[qrMostrar.indice];
+  const qr = qrcode(0, 'L'); // tamaño automático; corrección "L" (pantallas limpias)
+  qr.addData(texto, 'Alphanumeric');
+  qr.make();
+  const modulos = qr.getModuleCount();
+  const lienzo = $('qr-lienzo');
+  const margen = 4;
+  const celda = Math.max(2, Math.floor(680 / (modulos + margen * 2)));
+  const lado = celda * (modulos + margen * 2);
+  lienzo.width = lado;
+  lienzo.height = lado;
+  const g = lienzo.getContext('2d');
+  g.fillStyle = '#fff';
+  g.fillRect(0, 0, lado, lado);
+  g.fillStyle = '#000';
+  for (let fila = 0; fila < modulos; fila += 1) {
+    for (let col = 0; col < modulos; col += 1) {
+      if (qr.isDark(fila, col)) g.fillRect((col + margen) * celda, (fila + margen) * celda, celda, celda);
+    }
+  }
+  $('qr-contador').textContent = t('qrContador', { numero: qrMostrar.indice + 1, total: qrMostrar.partes.length });
+}
+
+function cerrarMostrarQR() {
+  clearInterval(qrMostrar.temporizador);
+  qrMostrar.partes = [];
+  if ($('dialogo-qr-mostrar').open) $('dialogo-qr-mostrar').close();
+}
+
+/* ---------- Escanear ---------- */
+
+async function abrirEscanearQR() {
+  qrEscaneo.lotes = new Map();
+  $('qr-escanear-error').hidden = true;
+  $('qr-barra').style.width = '0';
+  $('qr-estado').textContent = t('qrBuscando');
+  $('dialogo-qr-escanear').showModal();
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw Object.assign(new Error('sin cámara'), { name: 'NotFoundError' });
+    // Lector propio del navegador si existe y entiende QR; si no, jsQR
+    qrEscaneo.detector = null;
+    if ('BarcodeDetector' in window) {
+      try {
+        const formatos = await window.BarcodeDetector.getSupportedFormats();
+        if (formatos.includes('qr_code')) qrEscaneo.detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+      } catch (error) { qrEscaneo.detector = null; }
+    }
+    if (!qrEscaneo.detector) await cargarScript('vendor/jsqr/jsQR.js');
+    qrEscaneo.flujo = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    const video = $('qr-video');
+    video.srcObject = qrEscaneo.flujo;
+    await video.play();
+    qrEscaneo.activo = true;
+    buclesDeEscaneo();
+  } catch (error) {
+    console.warn('Cámara:', error);
+    const sinPermiso = error && (error.name === 'NotAllowedError' || error.name === 'SecurityError');
+    $('qr-escanear-error').textContent = t(sinPermiso ? 'qrSinPermiso' : 'qrSinCamara');
+    $('qr-escanear-error').hidden = false;
+    $('qr-estado').textContent = '';
+    detenerCamara();
+  }
+}
+
+/** Lee un cuadro de la cámara cada ~150 ms hasta completar o cerrar. */
+async function buclesDeEscaneo() {
+  if (!qrEscaneo.activo) return;
+  const video = $('qr-video');
+  try {
+    if (video.readyState >= 2) {
+      const textos = await leerQRDelVideo(video);
+      for (const texto of textos) {
+        const terminado = await recibirParteQR(texto);
+        if (terminado) return;
+      }
+    }
+  } catch (error) {
+    console.warn('Lectura QR:', error);
+  }
+  setTimeout(buclesDeEscaneo, 150);
+}
+
+/** Devuelve los textos de los QR que se ven en el cuadro actual. */
+async function leerQRDelVideo(video) {
+  if (qrEscaneo.detector) {
+    const encontrados = await qrEscaneo.detector.detect(video);
+    return encontrados.map((x) => x.rawValue);
+  }
+  // jsQR trabaja con una imagen: se copia el cuadro a un lienzo (achicado para ir rápido)
+  const escala = Math.min(1, 720 / Math.max(video.videoWidth, video.videoHeight));
+  const ancho = Math.round(video.videoWidth * escala);
+  const alto = Math.round(video.videoHeight * escala);
+  if (!qrEscaneo.lienzo) qrEscaneo.lienzo = document.createElement('canvas');
+  const lienzo = qrEscaneo.lienzo;
+  lienzo.width = ancho;
+  lienzo.height = alto;
+  const g = lienzo.getContext('2d', { willReadFrequently: true });
+  g.drawImage(video, 0, 0, ancho, alto);
+  const imagen = g.getImageData(0, 0, ancho, alto);
+  const resultado = window.jsQR(imagen.data, ancho, alto, { inversionAttempts: 'dontInvert' });
+  return resultado ? [resultado.data] : [];
+}
+
+/**
+ * Guarda una parte leída. Junta por "lote" (cada envío tiene el suyo).
+ * Cuando un lote está completo, aplica los datos. Devuelve true al terminar.
+ */
+async function recibirParteQR(texto) {
+  const parte = TucankitCore.leerParteQR(texto);
+  if (!parte) return false;
+  if (!qrEscaneo.lotes.has(parte.lote)) qrEscaneo.lotes.set(parte.lote, new Map());
+  const lote = qrEscaneo.lotes.get(parte.lote);
+  lote.set(parte.numero, parte);
+  $('qr-barra').style.width = `${Math.round((lote.size / parte.total) * 100)}%`;
+  $('qr-estado').textContent = t('qrRecibidas', { recibidas: lote.size, total: parte.total });
+  const completo = TucankitCore.unirPartesQR([...lote.values()]);
+  if (completo == null) return false;
+
+  qrEscaneo.activo = false;
+  detenerCamara();
+  $('qr-estado').textContent = t('qrAplicando');
+  try {
+    const paquete = JSON.parse(await TucankitCore.descomprimir(TucankitCore.deBase45(completo)));
+    const datos = validarPaquete(paquete);
+    const resumen = await aplicarMezcla(datos, 'qr');
+    alCambiarDatos();
+    $('dialogo-qr-escanear').close();
+    redibujar();
+    await confirmar({ titulo: t('qrListo'), texto: textoResumen(resumen), botonSi: t('entendido'), peligroso: false, soloAviso: true });
+  } catch (error) {
+    console.error(error);
+    $('qr-escanear-error').textContent = t('qrInvalido');
+    $('qr-escanear-error').hidden = false;
+  }
+  return true;
+}
+
+function detenerCamara() {
+  qrEscaneo.activo = false;
+  if (qrEscaneo.flujo) qrEscaneo.flujo.getTracks().forEach((pista) => pista.stop());
+  qrEscaneo.flujo = null;
+  $('qr-video').srcObject = null;
+}
+
+function cerrarEscanearQR() {
+  detenerCamara();
+  if ($('dialogo-qr-escanear').open) $('dialogo-qr-escanear').close();
+}
+
+/* =========================================================
    12. INSTALACIÓN, USO SIN INTERNET Y ALMACENAMIENTO
    ========================================================= */
 let eventoInstalacion = null;
@@ -2209,6 +2462,19 @@ function conectarEventos() {
   $('btn-restaurar').addEventListener('click', () => $('archivo-restaurar').click());
   $('archivo-restaurar').addEventListener('change', restaurarCopia);
   $('btn-borrar-todo').addEventListener('click', borrarTodo);
+
+  // QR
+  $('btn-qr-mostrar').addEventListener('click', abrirMostrarQR);
+  $('qr-generar').addEventListener('click', generarQR);
+  $('qr-mostrar-cerrar').addEventListener('click', cerrarMostrarQR);
+  $('dialogo-qr-mostrar').addEventListener('close', cerrarMostrarQR);
+  $('qr-pausa').addEventListener('click', () => {
+    qrMostrar.pausado = !qrMostrar.pausado;
+    $('qr-pausa').textContent = t(qrMostrar.pausado ? 'qrSeguir' : 'qrPausar');
+  });
+  $('btn-qr-escanear').addEventListener('click', abrirEscanearQR);
+  $('qr-escanear-cerrar').addEventListener('click', cerrarEscanearQR);
+  $('dialogo-qr-escanear').addEventListener('close', detenerCamara);
 
   // Avisos e instalación
   prepararInstalacion();

@@ -301,6 +301,15 @@
       </div>
 
       <div class="tarjeta">
+        <h3 data-t="qrTitulo"></h3>
+        <p class="ayuda" data-t="qrExplicacion"></p>
+        <div class="botones-columna">
+          <button id="btn-qr-mostrar" class="boton boton-accion boton-ancho" type="button" data-t="qrMostrar"></button>
+          <button id="btn-qr-escanear" class="boton boton-secundario boton-ancho" type="button" data-t="qrEscanear"></button>
+        </div>
+      </div>
+
+      <div class="tarjeta">
         <h3 data-t="copiaTitulo"></h3>
         <p class="ayuda" data-t="copiaExplicacion"></p>
         <p class="ayuda" id="copia-ultima"></p>
@@ -462,6 +471,46 @@
         <button class="boton boton-accion" type="submit" data-t="guardar"></button>
       </div>
     </form>
+  </dialog>
+
+  <!-- ===== Ventana para MOSTRAR los códigos QR ===== -->
+  <dialog id="dialogo-qr-mostrar" class="dialogo" aria-labelledby="qr-mostrar-titulo">
+    <div class="dialogo-cuerpo">
+      <h2 id="qr-mostrar-titulo" data-t="qrMostrar"></h2>
+      <div id="qr-opciones">
+        <p class="etiqueta-campo" data-t="qrQueEnviar"></p>
+        <label class="interruptor"><input type="radio" name="qr-alcance" value="todo" checked><span data-t="qrTodo"></span></label>
+        <label class="interruptor"><input type="radio" name="qr-alcance" value="30"><span data-t="qr30Dias"></span></label>
+        <button id="qr-generar" class="boton boton-accion boton-ancho" type="button" data-t="qrGenerar"></button>
+      </div>
+      <div id="qr-mostrando" hidden>
+        <p class="ayuda" data-t="qrInstruccionMostrar"></p>
+        <canvas id="qr-lienzo" class="qr-lienzo" width="340" height="340"></canvas>
+        <p id="qr-contador" class="qr-contador"></p>
+        <button id="qr-pausa" class="boton boton-fantasma-oscuro boton-chico" type="button"></button>
+      </div>
+      <p id="qr-mostrar-error" class="error" hidden></p>
+      <div class="dialogo-acciones">
+        <button id="qr-mostrar-cerrar" class="boton boton-fantasma-oscuro" type="button" data-t="cerrar"></button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- ===== Ventana para ESCANEAR los códigos QR ===== -->
+  <dialog id="dialogo-qr-escanear" class="dialogo" aria-labelledby="qr-escanear-titulo">
+    <div class="dialogo-cuerpo">
+      <h2 id="qr-escanear-titulo" data-t="qrEscanear"></h2>
+      <p class="ayuda" data-t="qrInstruccionEscanear"></p>
+      <div class="qr-camara">
+        <video id="qr-video" playsinline muted></video>
+      </div>
+      <div class="qr-progreso" aria-hidden="true"><div id="qr-barra"></div></div>
+      <p id="qr-estado" class="qr-contador" role="status"></p>
+      <p id="qr-escanear-error" class="aviso aviso-peligro" hidden></p>
+      <div class="dialogo-acciones">
+        <button id="qr-escanear-cerrar" class="boton boton-fantasma-oscuro" type="button" data-t="cerrar"></button>
+      </div>
+    </div>
   </dialog>
 
   <!-- ===== Ventana de confirmación (eliminar, restaurar, borrar todo) ===== -->
