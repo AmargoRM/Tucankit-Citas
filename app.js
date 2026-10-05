@@ -51,6 +51,7 @@ const TEXTOS = {
     instalar: 'Instalar app',
     ajustes: 'Ajustes',
     privacidad: 'Política de privacidad',
+    terminos: 'Términos de uso',
     navAgenda: 'Agenda',
     navClientes: 'Clientes',
     navGrupos: 'Grupos',

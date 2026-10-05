@@ -52,6 +52,7 @@ Reglas del proyecto: ver [`CLAUDE.md`](CLAUDE.md).
 | `sw.js` | Service worker: guarda la app para usarla sin internet. **Tiene un número de versión.** |
 | `manifest.json` | Datos para instalar la app. |
 | `privacidad.html` | Política de privacidad. |
+| `terminos.html` | Términos de uso (los datos marcados en amarillo los completa el dueño). |
 | `icons/` | Logo (`logo.svg`) e íconos PNG (se regeneran abriendo `tools/generar_iconos.html` en el navegador). |
 | `docs/google-drive.md` | Guía paso a paso para activar Google Drive. |
 | `pruebas/` | Pruebas automáticas (`node pruebas/core.test.js` y `node pruebas/excel.test.js`). No forman parte de la app. |
@@ -123,7 +124,7 @@ la instalación, «Compartir copia» y Google Drive **solo funcionan en `localho
 Cada cambio en archivos de la app sube en 1 el número de `sw.js`:
 
 ```js
-const VERSION = 20;   // cambiar a 21, luego 22, etc.
+const VERSION = 21;   // cambiar a 22, luego 23, etc.
 ```
 
 Si no se sube, los teléfonos que ya tienen la app siguen viendo la versión vieja.
