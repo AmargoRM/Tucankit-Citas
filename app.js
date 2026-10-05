@@ -617,10 +617,29 @@ function datosParaMensaje(cita) {
   };
 }
 
+/** Nombre fijo de la pestaña de WhatsApp Web: así se reusa siempre la misma. */
+const PESTANA_WHATSAPP = 'tucankit-whatsapp';
+
+/**
+ * Abre WhatsApp con el mensaje ya escrito.
+ *  - En el celular: enlace wa.me (abre la app de WhatsApp).
+ *  - En la computadora: WhatsApp Web, siempre en la misma pestaña.
+ */
+function abrirWhatsApp(numero, mensaje) {
+  const celular = TucankitCore.esCelular(navigator.userAgent, navigator.platform, navigator.maxTouchPoints);
+  if (celular) {
+    window.open(enlaceWhatsApp(numero, mensaje, 'app'), '_blank', 'noopener');
+    return;
+  }
+  // Sin "noopener": es lo que permite que el navegador reuse la pestaña con este nombre
+  const pestana = window.open(enlaceWhatsApp(numero, mensaje, 'web'), PESTANA_WHATSAPP);
+  if (pestana) pestana.focus();
+}
+
 function enviarRecordatorio(cita) {
   const mensaje = armarMensaje(estado.ajustes.plantilla, datosParaMensaje(cita));
   // Se abre primero (antes de cualquier espera) para que el navegador no lo bloquee
-  window.open(enlaceWhatsApp(cita.telefono, mensaje), '_blank', 'noopener');
+  abrirWhatsApp(cita.telefono, mensaje);
   marcarRecordatorio(cita, true);
 }
 

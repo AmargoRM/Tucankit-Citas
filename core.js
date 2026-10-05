@@ -177,9 +177,23 @@
     return `+${digitos}`;
   }
 
-  /** Arma el enlace oficial de WhatsApp: https://wa.me/<numero>?text=<mensaje> */
-  function enlaceWhatsApp(numero, mensaje) {
-    return `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
+  /**
+   * Arma el enlace oficial de WhatsApp con el mensaje ya escrito.
+   *  - destino "app" (celular): https://wa.me/<numero>?text=<mensaje>
+   *    abre la app de WhatsApp directamente.
+   *  - destino "web" (computadora): https://web.whatsapp.com/send?phone=...&text=...
+   *    abre WhatsApp Web sin pasar por la página intermedia de api.whatsapp.com.
+   */
+  function enlaceWhatsApp(numero, mensaje, destino = 'app') {
+    const texto = encodeURIComponent(mensaje);
+    if (destino === 'web') return `https://web.whatsapp.com/send?phone=${numero}&text=${texto}`;
+    return `https://wa.me/${numero}?text=${texto}`;
+  }
+
+  /** ¿Es un celular o tablet? (allí conviene abrir la app de WhatsApp) */
+  function esCelular(agente = '', plataforma = '', puntosTactiles = 0) {
+    return /android|iphone|ipad|ipod|mobile/i.test(agente)
+      || (plataforma === 'MacIntel' && puntosTactiles > 1); // iPad nuevo se presenta como Mac
   }
 
   /* ---------- Lo que este archivo ofrece hacia afuera ---------- */
@@ -204,7 +218,8 @@
     normalizarTelefono,
     telefonoValido,
     formatearTelefono,
-    enlaceWhatsApp
+    enlaceWhatsApp,
+    esCelular
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = TucankitCore;
