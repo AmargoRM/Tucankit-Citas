@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Tucankit Citas</title>
+  <meta name="description" content="Agenda simple con recordatorios por WhatsApp. Sus datos quedan solo en su teléfono.">
+  <meta name="theme-color" content="#1c1d21">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Citas">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!--
+    NOTA: casi todos los textos visibles están vacíos aquí a propósito.
+    Se llenan desde el objeto TEXTOS en app.js (atributos data-t),
+    para que todos los textos estén en un solo lugar y sea fácil traducir.
+  -->
+
+  <!-- ===== Encabezado con la marca ===== -->
+  <header class="encabezado">
+    <div class="marca">
+      <svg class="marca-logo" viewBox="0 0 100 100" aria-hidden="true">
+        <rect width="100" height="100" rx="22" fill="#1c1d21"/>
+        <polygon points="20,24 70,24 86,36 70,40 20,40" fill="#f28c1b"/>
+        <polygon points="20,24 70,24 78,30 20,30" fill="#ffc93c"/>
+        <rect x="40" y="40" width="16" height="38" fill="#f6f4ef"/>
+        <circle cx="30" cy="32" r="4" fill="#12a3a5"/>
+      </svg>
+      <div>
+        <span class="marca-nombre">Tucankit</span>
+        <span class="marca-producto" data-t="nombreProducto"></span>
+      </div>
+    </div>
+    <div class="encabezado-acciones">
+      <button id="btn-instalar" class="boton boton-acento boton-chico" type="button" hidden data-t="instalar"></button>
+      <button id="btn-ajustes" class="boton boton-fantasma boton-chico" type="button" data-t="ajustes"></button>
+    </div>
+  </header>
+
+  <!-- ===== Avisos (se muestran solo cuando hace falta) ===== -->
+  <div class="avisos">
+    <button id="aviso-actualizacion" class="aviso aviso-accion" type="button" hidden data-t="avisoActualizacion"></button>
+
+    <div id="aviso-error" class="aviso aviso-peligro" role="alert" hidden></div>
+
+    <div id="aviso-copia" class="aviso aviso-acento" hidden>
+      <p data-t="avisoCopia"></p>
+      <div class="aviso-botones">
+        <button id="aviso-copia-descargar" class="boton boton-accion boton-chico" type="button" data-t="descargarCopia"></button>
+        <button id="aviso-copia-cerrar" class="boton boton-fantasma boton-chico" type="button" data-t="ahoraNo"></button>
+      </div>
+    </div>
+
+    <div id="aviso-negocio" class="aviso aviso-info" hidden>
+      <p data-t="avisoNegocio"></p>
+      <div class="aviso-botones">
+        <button id="aviso-negocio-ir" class="boton boton-accion boton-chico" type="button" data-t="irAjustes"></button>
+      </div>
+    </div>
+
+    <div id="aviso-iphone" class="aviso aviso-info" hidden>
+      <p data-t="avisoIphone"></p>
+      <div class="aviso-botones">
+        <button id="aviso-iphone-cerrar" class="boton boton-fantasma boton-chico" type="button" data-t="entendido"></button>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <!-- ===== Vista principal: lista de citas ===== -->
+    <section id="vista-citas" class="vista">
+      <nav class="pestanas" role="tablist">
+        <button class="pestana" role="tab" type="button" data-pestana="manana" aria-selected="true">
+          <span data-t="pestanaManana"></span><span class="contador"></span>
+        </button>
+        <button class="pestana" role="tab" type="button" data-pestana="hoy" aria-selected="false">
+          <span data-t="pestanaHoy"></span><span class="contador"></span>
+        </button>
+        <button class="pestana" role="tab" type="button" data-pestana="proximas" aria-selected="false">
+          <span data-t="pestanaProximas"></span><span class="contador"></span>
+        </button>
+        <button class="pestana" role="tab" type="button" data-pestana="todas" aria-selected="false">
+          <span data-t="pestanaTodas"></span><span class="contador"></span>
+        </button>
+      </nav>
+
+      <h2 id="titulo-lista" class="titulo-lista"></h2>
+      <div id="lista-citas" class="lista" aria-live="polite"></div>
+    </section>
+
+    <!-- ===== Vista de Ajustes ===== -->
+    <section id="vista-ajustes" class="vista" hidden>
+      <div class="vista-cabecera">
+        <button id="btn-volver" class="boton boton-fantasma-oscuro boton-chico" type="button" data-t="volver"></button>
+        <h2 data-t="ajustesTitulo"></h2>
+      </div>
+
+      <form id="form-ajustes" class="tarjeta" novalidate>
+        <h3 data-t="ajustesNegocio"></h3>
+        <label class="campo">
+          <span data-t="campoNegocio"></span>
+          <input id="aj-negocio" type="text" maxlength="80" autocomplete="organization" data-t-placeholder="ejemploNegocio">
+        </label>
+        <label class="campo">
+          <span data-t="campoDireccion"></span>
+          <input id="aj-direccion" type="text" maxlength="160" autocomplete="street-address" data-t-placeholder="ejemploDireccion">
+        </label>
+        <label class="campo" id="campo-codigo">
+          <span data-t="campoCodigoPais"></span>
+          <input id="aj-codigo" type="text" inputmode="numeric" maxlength="4" autocomplete="off">
+          <small class="ayuda" data-t="ayudaCodigoPais"></small>
+          <small class="error" id="error-codigo" hidden></small>
+        </label>
+
+        <h3 data-t="ajustesMensaje"></h3>
+        <label class="campo" id="campo-plantilla">
+          <span data-t="campoPlantilla"></span>
+          <textarea id="aj-plantilla" rows="5" maxlength="1000"></textarea>
+          <small class="error" id="error-plantilla" hidden></small>
+        </label>
+        <p class="ayuda" data-t="ayudaVariables"></p>
+        <div id="variables" class="variables"></div>
+        <button id="btn-plantilla-defecto" class="enlace" type="button" data-t="restaurarPlantilla"></button>
+
+        <div class="vista-previa">
+          <span class="vista-previa-titulo" data-t="vistaPrevia"></span>
+          <p id="vista-previa-texto" class="burbuja"></p>
+        </div>
+
+        <button class="boton boton-accion boton-ancho" type="submit" data-t="guardarAjustes"></button>
+      </form>
+
+      <div class="tarjeta">
+        <h3 data-t="copiaTitulo"></h3>
+        <p class="ayuda" data-t="copiaExplicacion"></p>
+        <p class="ayuda" id="copia-ultima"></p>
+        <div class="botones-columna">
+          <button id="btn-descargar" class="boton boton-accion boton-ancho" type="button" data-t="descargarCopia"></button>
+          <button id="btn-restaurar" class="boton boton-secundario boton-ancho" type="button" data-t="restaurarCopia"></button>
+        </div>
+        <input id="archivo-restaurar" type="file" accept="application/json,.json" hidden>
+      </div>
+
+      <div class="tarjeta tarjeta-peligro">
+        <h3 data-t="peligroTitulo"></h3>
+        <p class="ayuda" data-t="peligroExplicacion"></p>
+        <button id="btn-borrar-todo" class="boton boton-peligro boton-ancho" type="button" data-t="borrarTodo"></button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Botón grande para crear una cita (abajo, al alcance del pulgar) -->
+  <button id="btn-nueva" class="boton-flotante" type="button" data-t="nuevaCita"></button>
+
+  <footer class="pie">
+    <a href="privacidad.html" data-t="privacidad"></a>
+    <span aria-hidden="true">·</span>
+    <span><strong>Tucankit</strong></span>
+  </footer>
+
+  <!-- Mensajes cortos que aparecen y desaparecen (ej.: "Cita guardada") -->
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <!-- ===== Ventana para crear o editar una cita ===== -->
+  <dialog id="dialogo-cita" class="dialogo" aria-labelledby="dialogo-cita-titulo">
+    <form id="form-cita" class="dialogo-cuerpo" novalidate>
+      <h2 id="dialogo-cita-titulo"></h2>
+
+      <label class="campo" id="campo-nombre">
+        <span data-t="campoNombre"></span>
+        <input id="cita-nombre" type="text" maxlength="80" autocomplete="off" data-t-placeholder="ejemploNombre">
+        <small class="error" hidden></small>
+      </label>
+
+      <label class="campo" id="campo-telefono">
+        <span data-t="campoTelefono"></span>
+        <input id="cita-telefono" type="tel" inputmode="tel" maxlength="25" autocomplete="off" data-t-placeholder="ejemploTelefono">
+        <small id="numero-final" class="numero-final"></small>
+        <small class="error" hidden></small>
+      </label>
+
+      <div class="fila">
+        <label class="campo" id="campo-fecha">
+          <span data-t="campoFecha"></span>
+          <input id="cita-fecha" type="date">
+          <small class="error" hidden></small>
+        </label>
+        <label class="campo" id="campo-hora">
+          <span data-t="campoHora"></span>
+          <input id="cita-hora" type="time">
+          <small class="error" hidden></small>
+        </label>
+      </div>
+
+      <label class="campo">
+        <span data-t="campoServicio"></span>
+        <input id="cita-servicio" type="text" maxlength="80" autocomplete="off" data-t-placeholder="ejemploServicio">
+      </label>
+
+      <label class="campo">
+        <span data-t="campoNota"></span>
+        <textarea id="cita-nota" rows="2" maxlength="500" data-t-placeholder="ejemploNota"></textarea>
+      </label>
+
+      <div class="dialogo-acciones">
+        <button id="cita-cancelar" class="boton boton-fantasma-oscuro" type="button" data-t="cancelar"></button>
+        <button class="boton boton-accion" type="submit" data-t="guardar"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ===== Ventana de confirmación (eliminar, restaurar, borrar todo) ===== -->
+  <dialog id="dialogo-confirmar" class="dialogo dialogo-chico" aria-labelledby="confirmar-titulo">
+    <div class="dialogo-cuerpo">
+      <h2 id="confirmar-titulo"></h2>
+      <p id="confirmar-texto" class="confirmar-texto"></p>
+      <div class="dialogo-acciones">
+        <button id="confirmar-no" class="boton boton-fantasma-oscuro" type="button"></button>
+        <button id="confirmar-si" class="boton boton-peligro" type="button"></button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- ===== Molde de una tarjeta de cita (app.js lo copia por cada cita) ===== -->
+  <template id="plantilla-cita">
+    <article class="cita">
+      <div class="cita-cabecera">
+        <span class="cita-hora"></span>
+        <span class="cita-fecha"></span>
+      </div>
+      <h3 class="cita-nombre"></h3>
+      <p class="cita-servicio"></p>
+      <p class="cita-telefono"></p>
+      <p class="cita-nota"></p>
+      <div class="cita-enviado" hidden>
+        <span class="cita-enviado-texto"></span>
+        <button class="enlace accion-desmarcar" type="button"></button>
+      </div>
+      <button class="boton boton-accion boton-ancho accion-enviar" type="button"></button>
+      <div class="cita-acciones">
+        <button class="boton boton-fantasma-oscuro boton-chico accion-editar" type="button"></button>
+        <button class="boton boton-fantasma-peligro boton-chico accion-eliminar" type="button"></button>
+      </div>
+    </article>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>

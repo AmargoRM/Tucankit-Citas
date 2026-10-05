@@ -1,0 +1,436 @@
+/* =========================================================
+   Tucankit Citas — estilos
+   Diseño "mobile first": primero se piensa para el celular
+   y al final hay ajustes para pantallas grandes.
+   ========================================================= */
+
+/* ---------- Colores y medidas de la marca ----------
+   Cambiar un color aquí lo cambia en toda la app. */
+:root {
+  --negro: #1c1d21;           /* encabezado y textos fuertes */
+  --texto: #1c1d21;
+  --texto-suave: #5d6169;
+  --acento: #f7a21b;          /* naranja-amarillo del pico del tucán */
+  --acento-claro: #ffc93c;
+  --acento-fondo: #fff4dc;
+  --accion: #0b7476;          /* verde azulado de los botones de acción */
+  --accion-oscuro: #095f61;
+  --accion-fondo: #e3f3f2;
+  --fondo: #f6f4ef;           /* fondo claro general */
+  --superficie: #ffffff;      /* fondo de tarjetas */
+  --borde: #e2ded4;
+  --peligro: #b42318;
+  --peligro-fondo: #fdecea;
+  --exito: #1e7a46;
+  --exito-fondo: #eaf6ee;
+
+  --radio: 14px;
+  --sombra: 0 1px 2px rgba(0, 0, 0, .06), 0 4px 12px rgba(0, 0, 0, .05);
+  --tactil: 52px;             /* alto mínimo de botones: fácil de tocar con el pulgar */
+
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--fondo);
+  color: var(--texto);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+/* Lo que tiene "hidden" nunca se muestra, aunque otra regla diga lo contrario */
+[hidden] { display: none !important; }
+
+h2 { font-size: 1.2rem; margin: 0; }
+h3 { font-size: 1.05rem; margin: 0 0 12px; }
+
+/* ---------- Encabezado ---------- */
+.encabezado {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  padding-top: calc(10px + env(safe-area-inset-top));
+  background: var(--negro);
+  color: #fff;
+}
+
+.marca { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.marca-logo { width: 38px; height: 38px; flex: none; }
+.marca-nombre { display: block; font-weight: 800; font-size: 1.05rem; letter-spacing: .02em; }
+.marca-producto {
+  display: block;
+  color: var(--acento-claro);
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.encabezado-acciones { display: flex; gap: 8px; flex: none; }
+
+/* ---------- Botones ---------- */
+.boton {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: var(--tactil);
+  padding: 0 18px;
+  border: 0;
+  border-radius: 12px;
+  font: inherit;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color .15s, transform .05s;
+}
+.boton:active { transform: scale(.98); }
+.boton:focus-visible,
+.pestana:focus-visible,
+.enlace:focus-visible,
+.boton-flotante:focus-visible { outline: 3px solid var(--acento); outline-offset: 2px; }
+
+.boton-chico { min-height: 40px; padding: 0 12px; font-size: .9rem; border-radius: 10px; }
+.boton-ancho { width: 100%; }
+
+.boton-accion { background: var(--accion); color: #fff; }
+.boton-accion:hover { background: var(--accion-oscuro); }
+
+.boton-secundario { background: var(--accion-fondo); color: var(--accion-oscuro); }
+.boton-secundario:hover { background: #d2ebe9; }
+
+.boton-acento { background: var(--acento); color: var(--negro); }
+
+.boton-fantasma { background: transparent; color: #fff; border: 1.5px solid rgba(255, 255, 255, .45); }
+.boton-fantasma-oscuro { background: transparent; color: var(--texto); border: 1.5px solid var(--borde); }
+.boton-fantasma-oscuro:hover { background: rgba(0, 0, 0, .04); }
+.boton-fantasma-peligro { background: transparent; color: var(--peligro); border: 1.5px solid rgba(180, 35, 24, .3); }
+
+.boton-peligro { background: var(--peligro); color: #fff; }
+.boton-peligro.no-peligroso { background: var(--accion); }
+
+.enlace {
+  min-height: 40px;
+  padding: 8px 4px;
+  border: 0;
+  background: none;
+  color: var(--accion);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Botón flotante "+ Nueva cita" */
+.boton-flotante {
+  position: fixed;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  z-index: 20;
+  min-height: 58px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: 29px;
+  background: var(--acento);
+  color: var(--negro);
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 800;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .25);
+  cursor: pointer;
+}
+.boton-flotante:active { transform: scale(.97); }
+
+/* ---------- Avisos ---------- */
+.avisos { width: 100%; max-width: 720px; margin: 0 auto; padding: 0 16px; }
+.aviso {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radio);
+  border: 1px solid var(--borde);
+  background: var(--superficie);
+  font: inherit;
+  text-align: left;
+}
+.aviso p { margin: 0 0 10px; }
+.aviso-botones { display: flex; gap: 8px; flex-wrap: wrap; }
+.aviso-info { background: var(--accion-fondo); border-color: #bfe0dd; }
+.aviso-acento { background: var(--acento-fondo); border-color: #f3d79a; }
+.aviso-peligro { background: var(--peligro-fondo); border-color: #f5c2bd; color: var(--peligro); font-weight: 600; }
+.aviso-accion {
+  background: var(--negro);
+  color: #fff;
+  border: 0;
+  font-weight: 700;
+  cursor: pointer;
+  min-height: var(--tactil);
+}
+
+/* ---------- Contenido principal ---------- */
+main {
+  flex: 1;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 12px 16px 24px;
+}
+
+/* Pestañas Mañana / Hoy / Próximas / Todas */
+.pestanas {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--superficie);
+}
+.pestana {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 4px 2px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--texto-suave);
+  font: inherit;
+  font-size: .92rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pestana[aria-selected="true"] { background: var(--negro); color: #fff; }
+.contador { font-size: .78rem; font-weight: 700; opacity: .75; }
+.pestana[aria-selected="true"] .contador { color: var(--acento-claro); opacity: 1; }
+
+.titulo-lista { margin: 18px 2px 12px; font-size: 1.15rem; }
+.titulo-lista::first-letter { text-transform: uppercase; }
+
+.lista { display: flex; flex-direction: column; gap: 12px; }
+
+.grupo-fecha {
+  margin: 10px 2px 0;
+  color: var(--texto-suave);
+  font-size: .85rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.vacio {
+  padding: 32px 16px;
+  border: 2px dashed var(--borde);
+  border-radius: var(--radio);
+  color: var(--texto-suave);
+  text-align: center;
+}
+
+/* ---------- Tarjeta de cita ---------- */
+.cita {
+  padding: 14px 16px;
+  border: 1px solid var(--borde);
+  border-left: 6px solid var(--acento);
+  border-radius: var(--radio);
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+}
+.cita.enviada { border-left-color: var(--exito); }
+.cita.pasada { opacity: .72; }
+
+.cita-cabecera { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
+.cita-hora { font-size: 1.45rem; font-weight: 800; }
+.cita-fecha { color: var(--texto-suave); font-size: .92rem; }
+.cita-fecha::first-letter { text-transform: uppercase; }
+.cita-nombre { margin: 2px 0; font-size: 1.15rem; }
+.cita-servicio { margin: 0; }
+.cita-telefono { margin: 2px 0 0; color: var(--texto-suave); font-size: .9rem; }
+.cita-nota {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--fondo);
+  font-size: .92rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.cita-enviado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 10px;
+  padding: 4px 4px 4px 12px;
+  border-radius: 10px;
+  background: var(--exito-fondo);
+  color: var(--exito);
+  font-size: .92rem;
+  font-weight: 700;
+}
+.accion-enviar { margin-top: 12px; font-size: 1.05rem; }
+.cita-acciones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+
+/* ---------- Ajustes ---------- */
+.vista-cabecera { display: flex; align-items: center; gap: 12px; margin: 4px 0 14px; }
+
+.tarjeta {
+  margin-bottom: 16px;
+  padding: 16px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+}
+.tarjeta h3:not(:first-child) { margin-top: 22px; }
+.tarjeta-peligro { border-color: #f5c2bd; }
+.botones-columna { display: flex; flex-direction: column; gap: 10px; }
+
+.variables { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+.variable {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid #bfe0dd;
+  border-radius: 18px;
+  background: var(--accion-fondo);
+  color: var(--accion-oscuro);
+  font: inherit;
+  font-size: .85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.vista-previa {
+  margin: 12px 0 16px;
+  padding: 14px;
+  border-radius: 12px;
+  background: #e9e4da;
+}
+.vista-previa-titulo { display: block; margin-bottom: 8px; color: var(--texto-suave); font-size: .85rem; font-weight: 700; }
+/* Imita una burbuja de chat para que se entienda que es el mensaje */
+.burbuja {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px 12px 4px 12px;
+  background: #dcf8c6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, .1);
+}
+
+/* ---------- Campos de formulario ---------- */
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+  font-size: .95rem;
+  font-weight: 600;
+}
+.campo input,
+.campo textarea {
+  width: 100%;
+  min-height: var(--tactil);
+  padding: 12px 14px;
+  border: 1.5px solid var(--borde);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--texto);
+  font: inherit;
+  font-size: 16px; /* 16px evita que el iPhone haga zoom al escribir */
+  font-weight: 400;
+}
+.campo textarea { min-height: 80px; resize: vertical; }
+.campo input:focus,
+.campo textarea:focus {
+  outline: none;
+  border-color: var(--accion);
+  box-shadow: 0 0 0 3px var(--accion-fondo);
+}
+.campo.invalido input,
+.campo.invalido textarea { border-color: var(--peligro); }
+
+.ayuda { margin: 0 0 10px; color: var(--texto-suave); font-size: .88rem; font-weight: 400; }
+.campo .ayuda { margin: 0; }
+.error { color: var(--peligro); font-size: .86rem; font-weight: 700; }
+.numero-final { color: var(--accion-oscuro); font-size: .88rem; font-weight: 700; min-height: 1.2em; }
+
+.fila { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.fila .campo { min-width: 0; }
+
+/* ---------- Ventanas (diálogos) ---------- */
+.dialogo {
+  width: min(560px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  padding: 0;
+  border: 0;
+  border-radius: 18px;
+  background: var(--superficie);
+  color: var(--texto);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, .3);
+}
+.dialogo-chico { width: min(440px, calc(100vw - 24px)); }
+.dialogo::backdrop { background: rgba(20, 20, 24, .55); }
+.dialogo-cuerpo { padding: 20px; }
+.dialogo-cuerpo h2 { margin-bottom: 16px; }
+.confirmar-texto { margin: 0 0 18px; white-space: pre-line; }
+.dialogo-acciones { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+.dialogo-acciones .boton { flex: 1 1 140px; }
+
+/* ---------- Mensaje corto (toast) ---------- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(90px + env(safe-area-inset-bottom));
+  z-index: 30;
+  max-width: calc(100vw - 32px);
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: var(--negro);
+  color: #fff;
+  font-weight: 600;
+  transform: translateX(-50%);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .25);
+}
+
+/* ---------- Pie de página ---------- */
+.pie {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 16px calc(100px + env(safe-area-inset-bottom));
+  color: var(--texto-suave);
+  font-size: .88rem;
+}
+.pie a { color: var(--accion-oscuro); }
+
+/* ---------- Pantallas grandes (computadora) ---------- */
+@media (min-width: 760px) {
+  main { padding-top: 20px; }
+  .encabezado { padding-left: max(16px, calc((100vw - 720px) / 2)); padding-right: max(16px, calc((100vw - 720px) / 2)); }
+  .boton-flotante { right: max(24px, calc((100vw - 720px) / 2 - 200px)); bottom: 32px; }
+}
+
+/* Pantallas muy angostas: pestañas con letra un poco más chica */
+@media (max-width: 360px) {
+  .pestana { font-size: .82rem; }
+  .fila { grid-template-columns: 1fr; gap: 0; }
+}
