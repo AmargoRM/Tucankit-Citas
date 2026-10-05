@@ -814,7 +814,7 @@ body:has(#barra-seleccion:not([hidden])) .toast { bottom: calc(200px + env(safe-
 .marca-boton:focus-visible { outline: 3px solid var(--acento); outline-offset: 2px; }
 
 /* Ajustes: secciones desplegables */
-.seccion { padding: 0; overflow: hidden; }
+.seccion { scroll-margin-top: 96px; padding: 0; overflow: hidden; }
 .seccion > summary {
   display: flex;
   align-items: center;
@@ -855,3 +855,6 @@ body:has(#barra-seleccion:not([hidden])) .toast { bottom: calc(200px + env(safe-
 .bienvenida-puntos span { width: 8px; height: 8px; border-radius: 50%; background: var(--borde); }
 .bienvenida-puntos span.activo { width: 22px; border-radius: 4px; background: var(--accion); }
 .bienvenida-saltar { display: block; margin: 8px auto 0; color: var(--texto-suave); }
+
+/* Texto o botón centrado debajo de una lista */
+.centrado { text-align: center; margin: 14px 0 0; }

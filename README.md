@@ -9,6 +9,9 @@ La app **no envía mensajes sola**: arma el mensaje y abre WhatsApp con el texto
 
 - **Clientes** con nota, etiquetas (VIP, Debe…) e historial. Se pueden **marcar varios** para un
   mensaje en fila o un recordatorio para todos.
+- **Clientes desde Excel:** se descarga una plantilla, se completa en Excel o Google Sheets y se importa
+  (acepta `.xlsx` y `.csv`). Los teléfonos repetidos no se tocan y antes se guarda una copia automática.
+  También se pueden descargar los clientes en el mismo formato.
 - **Cualquier país:** se elige de una lista (código telefónico, moneda y forma de escribir montos).
 - **Servicios y productos:** lista preestablecida (con precio opcional) para elegir con un toque.
 - **Horario de atención:** armado con clics; se puede incluir en los mensajes con `{horario}` y
@@ -44,13 +47,15 @@ Reglas del proyecto: ver [`CLAUDE.md`](CLAUDE.md).
 | `styles.css` | Colores y diseño (los colores de marca están al principio). |
 | `config.js` | ID de cliente de Google para la sincronización (valor de ejemplo hasta configurarlo). |
 | `core.js` | Funciones reutilizables, sin pantalla ni base de datos: teléfonos, fechas, plantillas, montos, horario y **mezcla segura**. |
+| `excel.js` | Crear y leer archivos de Excel (`.xlsx`) y CSV, sin bibliotecas: plantilla, importar y descargar clientes. |
 | `app.js` | Pantallas, base de datos del dispositivo, copias, Drive, bienvenida e instalación. Textos en el objeto `TEXTOS`. |
 | `sw.js` | Service worker: guarda la app para usarla sin internet. **Tiene un número de versión.** |
 | `manifest.json` | Datos para instalar la app. |
 | `privacidad.html` | Política de privacidad. |
 | `icons/` | Logo (`logo.svg`) e íconos PNG (se regeneran abriendo `tools/generar_iconos.html` en el navegador). |
 | `docs/google-drive.md` | Guía paso a paso para activar Google Drive. |
-| `pruebas/core.test.js` | Pruebas automáticas de `core.js` (`node pruebas/core.test.js`). No forman parte de la app. |
+| `pruebas/` | Pruebas automáticas (`node pruebas/core.test.js` y `node pruebas/excel.test.js`). No forman parte de la app. |
+| `tools/generar_iconos.html` | Herramienta para regenerar los íconos desde `icons/logo.svg`. No forma parte de la app. |
 | `CLAUDE.md` | Reglas permanentes del proyecto. |
 
 ## Ramas
@@ -118,7 +123,7 @@ la instalación, «Compartir copia» y Google Drive **solo funcionan en `localho
 Cada cambio en archivos de la app sube en 1 el número de `sw.js`:
 
 ```js
-const VERSION = 19;   // cambiar a 20, luego 21, etc.
+const VERSION = 20;   // cambiar a 21, luego 22, etc.
 ```
 
 Si no se sube, los teléfonos que ya tienen la app siguen viendo la versión vieja.

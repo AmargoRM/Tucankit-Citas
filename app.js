@@ -286,6 +286,51 @@ const TEXTOS = {
     ejemploNombreDispositivo: 'Ej.: Celular de Ana',
     ayudaNombreDispositivo: 'Sirve para saber desde dónde se hizo cada cambio al sincronizar.',
 
+    // Clientes en Excel
+    excelTitulo: 'Clientes en Excel',
+    excelExplicacion: 'Para cargar muchos clientes de una vez: 1) descargue la plantilla; 2) complétela en Excel o Google Sheets, una fila por cliente (nombre y teléfono son obligatorios; nota y etiquetas, opcionales); 3) guárdela y toque «Importar clientes».',
+    excelCodigo: 'Si un teléfono no empieza con +, se usa el código de su país (+{codigo}).',
+    excelPlantilla: '📄 Descargar plantilla',
+    excelImportar: '📥 Importar clientes',
+    excelDescargar: 'Descargar mis clientes en Excel',
+    importarDesdeExcel: '📥 Importar clientes desde Excel',
+    excelErrorArchivo: 'No se pudo leer el archivo. Use la plantilla y guárdela como Excel (.xlsx) o CSV.',
+    excelErrorXls: 'Ese archivo es del Excel antiguo (.xls). Ábralo en Excel y use «Guardar como» → «Libro de Excel (.xlsx)».',
+    excelErrorGrande: 'El archivo es muy grande (más de 5 MB). Deje solo la hoja de clientes.',
+    excelNadaTitulo: 'No hay clientes nuevos para importar',
+    excelConfirmarTitulo: '¿Importar {cantidad} clientes?',
+    excelConfirmarTituloUno: '¿Importar 1 cliente?',
+    excelNuevos: '✅ {cantidad} clientes nuevos.',
+    excelNuevosUno: '✅ 1 cliente nuevo.',
+    excelExisten: '↩️ {cantidad} ya estaban (mismo teléfono): no se cambian.',
+    excelExistenUno: '↩️ 1 ya estaba (mismo teléfono): no se cambia.',
+    excelSinFilas: 'El archivo no tiene filas con nombre y teléfono. Revise que estén en la primera hoja.',
+    excelConErrores: '⚠️ {cantidad} filas no se pueden importar:',
+    excelError_sinNombre: '· fila {fila}: falta el nombre',
+    excelError_telefono: '· fila {fila} ({nombre}): el teléfono no es válido',
+    excelError_repetidoArchivo: '· fila {fila} ({nombre}): teléfono repetido en el archivo',
+    excelErroresMas: '· y {cantidad} más',
+    excelCopiaAntes: 'Antes de importar se guarda una copia automática (Ajustes → Copias automáticas).',
+    excelBotonImportar: 'Importar',
+    excelImportados: 'Listo: se importaron {cantidad} clientes.',
+    excelImportadosUno: 'Listo: se importó 1 cliente.',
+    excelDescargado: 'Archivo de Excel descargado.',
+    plantillaEjemplo: 'EJEMPLO (borre esta fila) Ana Pérez',
+    plantillaEjemploNota: 'Prefiere citas en la mañana',
+    plantillaEjemploEtiquetas: 'VIP, Zapatos',
+    plantillaInstrucciones: [
+      'Cómo completar la plantilla de Tucankit Citas',
+      '',
+      '1. Use la hoja «Clientes». Una fila por cliente. No cambie los títulos de la primera fila.',
+      '2. Nombre y Teléfono son obligatorios. Nota y Etiquetas son opcionales.',
+      '3. Teléfono: escríbalo como lo marca normalmente (ej.: 8888 1111). Si es de otro país, empiece con + y el código (ej.: +52 55 1234 5678).',
+      '4. Etiquetas: separadas por comas (ej.: VIP, Zapatos). Si no existen, la app las crea.',
+      '5. La fila que empieza con «EJEMPLO» se ignora: puede borrarla.',
+      '6. Guarde el archivo (Excel .xlsx o CSV) y en la app toque Ajustes → Clientes en Excel → Importar clientes.',
+      '',
+      'Si un teléfono ya existe en la app, ese cliente no se cambia. Antes de importar, la app guarda una copia automática.'
+    ],
+
     // Copia de seguridad
     copiaTitulo: 'Copia de seguridad',
     copiaExplicacion: 'Sus datos existen solo en este dispositivo (y en su Google Drive si activa la sincronización). Descargue una copia de vez en cuando y guárdela en un lugar seguro.',
@@ -324,6 +369,7 @@ const TEXTOS = {
     motivo_restaurar: 'antes de restaurar una copia',
     motivo_borrar: 'antes de borrar todo',
     motivo_volver: 'antes de volver a una copia',
+    motivo_importar: 'antes de importar clientes',
     motivo_qr: 'antes de recibir por QR',
     confirmarVolverTitulo: '¿Volver a esta copia?',
     confirmarVolverTexto: 'Sus datos quedarán como estaban el {momento}.\n\nIMPORTANTE: si usa sincronización, esto también se aplicará en sus otros dispositivos: lo que se hizo después de esa copia se deshará en todos.\n\nAntes de cambiar, se guarda una copia de lo actual.',
@@ -2039,6 +2085,7 @@ function cargarFormularioAjustes() {
   $('aj-moneda').value = a.moneda;
   $('aj-pago').value = a.pagoHabitual;
   $('aj-whatsapp-computadora').value = estado.locales.whatsappComputadora;
+  $('excel-codigo').textContent = t('excelCodigo', { codigo: estado.compartidos.codigoPais || '' });
   $('aj-enlaces').checked = a.enlacesRespuesta;
   $('aj-telnegocio').value = a.telefonoNegocio ? '+' + a.telefonoNegocio : '';
   $('aj-firma-activa').checked = a.firmaActiva;
@@ -2363,6 +2410,107 @@ async function compartirCopia() {
   }
   await descargarCopia();
   await confirmar({ titulo: t('compartirCopia'), texto: t('compartirSinSoporte'), botonSi: t('entendido'), peligroso: false, soloAviso: true });
+}
+
+/* ---------------------------------------------------------
+   Clientes en Excel: plantilla, importar y descargar
+   (la lectura y escritura del archivo están en excel.js)
+   --------------------------------------------------------- */
+
+/** Descarga bytes como archivo. */
+function descargarBytes(bytes, nombre, tipo) {
+  const enlace = document.createElement('a');
+  enlace.href = URL.createObjectURL(new Blob([bytes], { type: tipo }));
+  enlace.download = nombre;
+  document.body.append(enlace);
+  enlace.click();
+  enlace.remove();
+  setTimeout(() => URL.revokeObjectURL(enlace.href), 10000);
+}
+
+const TIPO_XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const ANCHOS_EXCEL = [32, 22, 40, 28];
+
+/** Hoja de instrucciones que va dentro de la plantilla. */
+const hojaInstrucciones = () => ({ nombre: 'Instrucciones', filas: t('plantillaInstrucciones').map((linea) => [linea]), anchos: [110] });
+
+function descargarPlantilla() {
+  const filas = [TucankitExcel.COLUMNAS, [t('plantillaEjemplo'), '8888 1111', t('plantillaEjemploNota'), t('plantillaEjemploEtiquetas')]];
+  descargarBytes(TucankitExcel.crearXlsx([{ nombre: 'Clientes', filas, anchos: ANCHOS_EXCEL }, hojaInstrucciones()]),
+    'tucankit-plantilla-clientes.xlsx', TIPO_XLSX);
+  avisar(t('excelDescargado'));
+}
+
+function descargarClientesExcel() {
+  const clientes = clientesActivos()
+    .slice().sort((a, b) => a.nombre.localeCompare(b.nombre, IDIOMA))
+    .map((c) => ({ ...c, etiquetas: (c.etiquetaIds || []).map(etiquetaPorId).filter((e) => e && estaActivo(e)).map((e) => e.nombre) }));
+  descargarBytes(TucankitExcel.crearXlsx([{ nombre: 'Clientes', filas: TucankitExcel.clientesAFilas(clientes, (digitos) => formatearTelefono(digitos, estado.compartidos.codigoPais)), anchos: ANCHOS_EXCEL }, hojaInstrucciones()]),
+    `tucankit-clientes-${hoyTexto()}.xlsx`, TIPO_XLSX);
+  avisar(t('excelDescargado'));
+}
+
+/** Lee el archivo elegido, muestra el resumen y, si la persona acepta, importa. */
+async function importarClientesExcel(archivo) {
+  if (!archivo) return;
+  if (archivo.size > 5 * 1024 * 1024) { mostrarError(t('excelErrorGrande')); return; }
+  let filas;
+  try {
+    filas = await TucankitExcel.leerArchivo(new Uint8Array(await archivo.arrayBuffer()), archivo.name);
+  } catch (error) {
+    console.warn(error);
+    mostrarError(t(error && error.message === 'xls-viejo' ? 'excelErrorXls' : 'excelErrorArchivo'));
+    return;
+  }
+  const { clientes, errores } = TucankitExcel.filasAClientes(filas, estado.compartidos.codigoPais, normalizarTelefono, telefonoValido);
+  const nuevos = clientes.filter((c) => !clienteConTelefono(c.telefono));
+  const existentes = clientes.length - nuevos.length;
+
+  // Resumen para la persona
+  const lineas = [];
+  if (nuevos.length) lineas.push(nuevos.length === 1 ? t('excelNuevosUno') : t('excelNuevos', { cantidad: nuevos.length }));
+  if (existentes) lineas.push(existentes === 1 ? t('excelExistenUno') : t('excelExisten', { cantidad: existentes }));
+  if (!clientes.length && !errores.length) lineas.push(t('excelSinFilas'));
+  if (errores.length) {
+    lineas.push('', t('excelConErrores', { cantidad: errores.length }));
+    errores.slice(0, 8).forEach((e) => lineas.push(t('excelError_' + e.motivo, { fila: e.fila, nombre: e.nombre })));
+    if (errores.length > 8) lineas.push(t('excelErroresMas', { cantidad: errores.length - 8 }));
+  }
+  if (!nuevos.length) {
+    await confirmar({ titulo: t('excelNadaTitulo'), texto: lineas.join('\n'), botonSi: t('entendido'), peligroso: false, soloAviso: true });
+    return;
+  }
+  lineas.push('', t('excelCopiaAntes'));
+  const seguro = await confirmar({
+    titulo: nuevos.length === 1 ? t('excelConfirmarTituloUno') : t('excelConfirmarTitulo', { cantidad: nuevos.length }),
+    texto: lineas.join('\n'), botonSi: t('excelBotonImportar'), peligroso: false
+  });
+  if (!seguro) return;
+
+  // Etiquetas: se usan las que ya existen (mismo nombre) y se crean las que faltan
+  const etiquetasNuevas = [];
+  const idDeEtiqueta = (nombre) => {
+    const existente = [...etiquetasActivas(), ...etiquetasNuevas].find((e) => paraBuscar(e.nombre) === paraBuscar(nombre));
+    if (existente) return existente.id;
+    const etiqueta = { id: nuevoId(), nombre };
+    etiquetasNuevas.push(etiqueta);
+    return etiqueta.id;
+  };
+  const ahora = Date.now();
+  const registros = nuevos.map((c) => ({
+    id: nuevoId(), creadoEn: ahora, nombre: c.nombre, telefono: c.telefono, nota: c.nota,
+    etiquetaIds: [...new Set(c.etiquetas.map(idDeEtiqueta))]
+  }));
+  try {
+    await guardarCopiaAuto('importar');
+    await guardarCambios({ clientes: registros, ...(etiquetasNuevas.length ? { etiquetas: etiquetasNuevas } : {}) });
+    dibujarCopiasAuto();
+    redibujar();
+    avisar(registros.length === 1 ? t('excelImportadosUno') : t('excelImportados', { cantidad: registros.length }), 4);
+  } catch (error) {
+    console.error(error);
+    mostrarError(t('errorGuardar'));
+  }
 }
 
 async function descargarCopia() {
@@ -3263,6 +3411,15 @@ function conectarEventos() {
 
   // Copias y borrar todo
   $('btn-compartir').addEventListener('click', compartirCopia);
+  $('btn-excel-plantilla').addEventListener('click', descargarPlantilla);
+  $('btn-excel-descargar').addEventListener('click', descargarClientesExcel);
+  $('btn-excel-importar').addEventListener('click', () => $('archivo-excel').click());
+  $('archivo-excel').addEventListener('change', async (evento) => {
+    const archivo = evento.target.files[0];
+    evento.target.value = ''; // permite elegir el mismo archivo otra vez
+    await importarClientesExcel(archivo);
+  });
+  $('btn-clientes-excel').addEventListener('click', () => abrirSeccionAjustes('excel'));
   $('btn-descargar').addEventListener('click', descargarCopia);
   $('aviso-copia-descargar').addEventListener('click', descargarCopia);
   $('aviso-copia-cerrar').addEventListener('click', () => { avisoCopiaCerrado = true; revisarAvisos(); });
