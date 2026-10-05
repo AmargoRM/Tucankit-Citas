@@ -9,6 +9,7 @@
      4. Lista de citas y pestañas
      5. Formulario de cita
      6. Recordatorio por WhatsApp
+     7. Ajustes y plantilla del mensaje
     10. Inicio de la app
    ========================================================= */
 'use strict';
@@ -750,6 +751,117 @@ async function marcarRecordatorio(cita, enviado) {
 }
 
 /* =========================================================
+   7. AJUSTES Y PLANTILLA DEL MENSAJE
+   ========================================================= */
+
+/** Palabras que se pueden usar en la plantilla del mensaje. */
+const VARIABLES = ['nombre', 'servicio', 'fecha', 'hora', 'negocio', 'direccion'];
+
+/** Cambia entre la lista de citas y la pantalla de Ajustes. */
+function mostrarVista(vista) {
+  const enAjustes = vista === 'ajustes';
+  $('vista-citas').hidden = enAjustes;
+  $('vista-ajustes').hidden = !enAjustes;
+  $('btn-nueva').hidden = enAjustes;
+  $('btn-ajustes').hidden = enAjustes;
+  if (enAjustes) cargarFormularioAjustes();
+  else mostrarCitas();
+  window.scrollTo(0, 0);
+}
+
+/** Pone los ajustes guardados en los campos de la pantalla de Ajustes. */
+function cargarFormularioAjustes() {
+  const a = estado.ajustes;
+  $('aj-negocio').value = a.negocio;
+  $('aj-direccion').value = a.direccion;
+  $('aj-codigo').value = a.codigoPais;
+  $('aj-plantilla').value = a.plantilla;
+  ['codigo', 'plantilla'].forEach((campo) => marcarError(campo, ''));
+  actualizarVistaPrevia();
+  mostrarUltimaCopia();
+}
+
+/** Muestra cómo quedaría el mensaje con datos de ejemplo. */
+function actualizarVistaPrevia() {
+  const datosEjemplo = {
+    nombre: t('ejemploNombreCliente'),
+    servicio: t('ejemploServicioCita'),
+    fecha: fechaAmigable(sumarDias(hoyTexto(), 1)),
+    hora: horaAmigable('15:30'),
+    negocio: $('aj-negocio').value.trim() || t('negocioGenerico'),
+    direccion: $('aj-direccion').value.trim()
+  };
+  $('vista-previa-texto').textContent = armarMensaje($('aj-plantilla').value, datosEjemplo);
+}
+
+/** Inserta una palabra como {nombre} donde está el cursor en la plantilla. */
+function insertarVariable(nombre) {
+  const campo = $('aj-plantilla');
+  const texto = `{${nombre}}`;
+  const inicio = campo.selectionStart ?? campo.value.length;
+  const fin = campo.selectionEnd ?? campo.value.length;
+  campo.setRangeText(texto, inicio, fin, 'end');
+  campo.focus();
+  actualizarVistaPrevia();
+}
+
+/** Crea los botones de las palabras {nombre}, {fecha}, etc. */
+function crearBotonesVariables() {
+  const contenedor = $('variables');
+  VARIABLES.forEach((nombre) => {
+    const boton = document.createElement('button');
+    boton.type = 'button';
+    boton.className = 'variable';
+    boton.textContent = `{${nombre}}`;
+    boton.addEventListener('click', () => insertarVariable(nombre));
+    contenedor.append(boton);
+  });
+}
+
+async function guardarAjustes(evento) {
+  evento.preventDefault();
+  const codigo = $('aj-codigo').value.trim();
+  const plantilla = $('aj-plantilla').value.trim();
+
+  const errorCodigo = /^\d{1,4}$/.test(codigo) ? '' : t('errorCodigoPais');
+  const errorPlantilla = plantilla ? '' : t('errorPlantilla');
+  marcarError('codigo', errorCodigo);
+  marcarError('plantilla', errorPlantilla);
+  if (errorCodigo) { $('aj-codigo').focus(); return; }
+  if (errorPlantilla) { $('aj-plantilla').focus(); return; }
+
+  const nuevos = {
+    ...estado.ajustes,
+    negocio: $('aj-negocio').value.trim(),
+    direccion: $('aj-direccion').value.trim(),
+    codigoPais: codigo,
+    plantilla
+  };
+  try {
+    await guardarAjustesBD(nuevos);
+    estado.ajustes = nuevos;
+    revisarAvisos();
+    avisar(t('ajustesGuardados'));
+  } catch (error) {
+    console.error(error);
+    mostrarError(t('errorGuardar'));
+  }
+}
+
+/** Muestra cuándo se descargó la última copia . */
+function mostrarUltimaCopia() {
+  const ultima = estado.ajustes.ultimaCopia;
+  $('copia-ultima').textContent = ultima
+    ? t('copiaUltima', { momento: momentoAmigable(ultima) })
+    : t('copiaNunca');
+}
+
+/** Muestra u oculta los avisos de arriba según la situación. */
+function revisarAvisos() {
+  $('aviso-negocio').hidden = Boolean(estado.ajustes.negocio);
+}
+
+/* =========================================================
    10. INICIO DE LA APP
    ========================================================= */
 
@@ -766,6 +878,18 @@ function conectarEventos() {
   $('form-cita').addEventListener('submit', guardarFormulario);
   $('cita-cancelar').addEventListener('click', () => $('dialogo-cita').close());
   $('cita-telefono').addEventListener('input', actualizarNumeroFinal);
+
+  // Ajustes
+  crearBotonesVariables();
+  $('btn-ajustes').addEventListener('click', () => mostrarVista('ajustes'));
+  $('btn-volver').addEventListener('click', () => mostrarVista('citas'));
+  $('aviso-negocio-ir').addEventListener('click', () => mostrarVista('ajustes'));
+  $('form-ajustes').addEventListener('submit', guardarAjustes);
+  ['aj-negocio', 'aj-direccion', 'aj-plantilla'].forEach((id) => $(id).addEventListener('input', actualizarVistaPrevia));
+  $('btn-plantilla-defecto').addEventListener('click', () => {
+    $('aj-plantilla').value = t('plantillaPorDefecto');
+    actualizarVistaPrevia();
+  });
 
   // Si la app queda abierta y pasa la medianoche, "hoy" y "mañana" cambian
   document.addEventListener('visibilitychange', () => {
@@ -791,6 +915,7 @@ async function iniciar() {
     return;
   }
   mostrarCitas();
+  revisarAvisos();
 }
 
 iniciar();
