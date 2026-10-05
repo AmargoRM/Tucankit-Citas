@@ -323,11 +323,19 @@ const TEXTOS = {
     qrTodo: 'Todo',
     qr30Dias: 'Solo próximos 30 días y sus clientes',
     qrGenerar: 'Generar códigos',
-    qrInstruccionMostrar: 'Apunte la cámara del otro dispositivo a esta pantalla. Si hay varios códigos, pasan solos: déjela apuntando hasta que termine.',
+    qrInstruccionMostrar: 'En el OTRO dispositivo: abra Tucankit Citas → Ajustes → «Escanear QR» y apunte la cámara a esta pantalla. Los códigos pasan solos: déjela apuntando hasta que termine.',
+    qrVariosAviso: 'Son {total} códigos. Con «Escanear QR» dentro de la app se leen todos seguidos. Con la cámara normal del celular habría que tocar el enlace de cada uno.',
     qrContador: 'QR {numero} de {total}',
     qrPausar: 'Pausar',
     qrSeguir: 'Seguir',
-    qrInstruccionEscanear: 'Apunte la cámara a los códigos del otro dispositivo. Se pueden leer en cualquier orden.',
+    qrInstruccionEscanear: 'Apunte la cámara a los códigos que muestra el otro dispositivo (Ajustes → «Mostrar QR»). Se leen en cualquier orden; al terminar le preguntará antes de recibir.',
+    otroDispositivo: 'otro dispositivo',
+    qrConfirmarTitulo: '¿Recibir estos datos?',
+    qrConfirmarTexto: 'Vienen de «{origen}»: {clientes} clientes y {recordatorios} recordatorios.\n\nSe mezclan con los suyos: no se borra nada de lo que ya tiene (gana lo más reciente). Antes se guarda una copia automática.',
+    qrRecibir: 'Sí, recibir',
+    qrParteRecibidaTitulo: 'Código QR recibido ({recibidas} de {total})',
+    qrParteRecibidaTexto: 'Faltan {faltan} códigos. Toque «Seguir escaneando» y apunte la cámara a la pantalla del otro dispositivo para leer el resto.',
+    qrSeguirEscaneando: 'Seguir escaneando',
     qrBuscando: 'Buscando códigos…',
     qrRecibidas: 'Recibidos {recibidas} de {total}',
     qrAplicando: 'Aplicando los datos…',
@@ -357,6 +365,8 @@ const TEXTOS = {
     driveCuenta: 'Cuenta: {cuenta}',
     driveUltima: 'Última sincronización: {momento}',
     driveNunca: 'Todavía no se sincronizó',
+    driveNoDisponible: 'Todavía no disponible',
+    driveNoDisponibleDetalle: 'Falta un paso del dueño de la app: crear la conexión con Google (ID de cliente). Mientras tanto, use «Pasar datos a otro dispositivo» o la copia de seguridad.',
     driveSinConfigurar: 'Falta configurar el ID de cliente de Google en el archivo config.js. Siga la guía docs/google-drive.md.',
     driveSinInternet: 'Para conectar con Google Drive necesita internet.',
     driveNoConectado: 'No se pudo conectar con Google Drive. Intente de nuevo.',
@@ -552,6 +562,7 @@ function localesPorDefecto() {
     primerUso: Date.now(),
     envioGrupo: { grupo: '', mensaje: t('grupoMensajeInicial'), enviados: [], elegidos: [] },
     // Google Drive (propio de este dispositivo; nunca se sincroniza)
+    qrRecibidas: null,     // partes de QR recibidas de un envío (para no perder el avance)
     driveActivo: false,
     driveToken: '',        // permiso temporal de Google (~1 hora)
     driveTokenVence: 0,
@@ -598,7 +609,9 @@ function normalizarCompartidos(a = {}) {
   if (a._sello && typeof a._sello === 'object') {
     CLAVES_COMPARTIDAS.forEach((k) => {
       const s = a._sello[k];
-      if (s && typeof s.actualizadoEn === 'number') r._sello[k] = { actualizadoEn: s.actualizadoEn, dispositivoId: String(s.dispositivoId || '') };
+      if (s && typeof s.actualizadoEn === 'number') {
+        r._sello[k] = { actualizadoEn: Math.min(s.actualizadoEn, Date.now() + 5 * 60000), dispositivoId: String(s.dispositivoId || '') };
+      }
     });
   }
   return r;
@@ -614,6 +627,10 @@ function normalizarLocales(a = {}) {
   r.avisoDireccionOculto = a.avisoDireccionOculto === true;
   if (typeof a.ultimaCopia === 'number') r.ultimaCopia = a.ultimaCopia;
   if (typeof a.primerUso === 'number') r.primerUso = a.primerUso;
+  const q = a.qrRecibidas;
+  if (q && typeof q === 'object' && typeof q.lote === 'string' && Number.isInteger(q.total) && q.partes && Date.now() - q.en < 86400000) {
+    r.qrRecibidas = { lote: q.lote, total: q.total, partes: q.partes, en: q.en };
+  }
   r.driveActivo = a.driveActivo === true;
   r.drivePendiente = a.drivePendiente === true;
   ['driveToken', 'driveArchivoId', 'driveCuenta'].forEach((k) => { if (typeof a[k] === 'string') r[k] = a[k]; });
@@ -2178,9 +2195,13 @@ const textoO = (v, porDefecto = '') => (typeof v === 'string' ? v : porDefecto);
 const numeroO = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
 /** Campos de sincronización de un registro (los inventa si faltan). */
+/** Una fecha de cambio "en el futuro" (reloj adelantado o datos falsos) se toma como "ahora". */
+const MARGEN_FUTURO_MS = 5 * 60000;
+const fechaCambioSegura = (valor, ahora) => Math.min(numeroO(valor) || ahora, ahora + MARGEN_FUTURO_MS);
+
 function metaDe(x, dispositivoId, ahora) {
   return {
-    actualizadoEn: numeroO(x.actualizadoEn) || ahora,
+    actualizadoEn: fechaCambioSegura(x.actualizadoEn, ahora),
     dispositivoId: textoO(x.dispositivoId) || dispositivoId,
     borradoEn: numeroO(x.borradoEn)
   };
@@ -2462,7 +2483,7 @@ function revisarAvisos() {
 
 /* =========================================================
    11b. PASAR DATOS POR CÓDIGO QR (sin internet)
-   Mostrar: datos → gzip → Base45 → partes "TK3:..." → QR en secuencia.
+   Mostrar: datos → gzip → base64url → partes "<dirección>#qr=TK4..." → QR en secuencia.
    Escanear: cámara → BarcodeDetector (si existe) o jsQR → juntar partes
    en cualquier orden → mezcla segura.
    Las bibliotecas (vendor/) se cargan solo al abrir estas ventanas.
@@ -2514,7 +2535,11 @@ async function generarQR() {
     const alcance = document.querySelector('input[name="qr-alcance"]:checked').value;
     const bytes = await TucankitCore.comprimir(JSON.stringify(paqueteParaQR(alcance)));
     const lote = Math.random().toString(36).slice(2, 7).toUpperCase().replace(/[^0-9A-Z]/g, 'X').padEnd(5, '0');
-    qrMostrar.partes = TucankitCore.crearPartesQR(TucankitCore.aBase45(bytes), lote);
+    // Cada código es una dirección de la app: con la cámara normal, el celular ofrece abrirla
+    const direccionApp = location.origin + location.pathname;
+    qrMostrar.partes = TucankitCore.crearPartesQR(TucankitCore.aBase64Url(bytes), lote, direccionApp);
+    $('qr-varios-aviso').hidden = qrMostrar.partes.length < 2;
+    $('qr-varios-aviso').textContent = t('qrVariosAviso', { total: qrMostrar.partes.length });
     qrMostrar.indice = 0;
     qrMostrar.pausado = false;
     $('qr-opciones').hidden = true;
@@ -2541,7 +2566,7 @@ async function generarQR() {
 function dibujarQRActual() {
   const texto = qrMostrar.partes[qrMostrar.indice];
   const qr = qrcode(0, 'L'); // tamaño automático; corrección "L" (pantallas limpias)
-  qr.addData(texto, 'Alphanumeric');
+  qr.addData(texto, 'Byte');
   qr.make();
   const modulos = qr.getModuleCount();
   const lienzo = $('qr-lienzo');
@@ -2570,11 +2595,96 @@ function cerrarMostrarQR() {
 
 /* ---------- Escanear ---------- */
 
-async function abrirEscanearQR() {
+/**
+ * Guarda una parte recibida (en memoria y en el dispositivo, para no perder
+ * el avance si se cierra la ventana o si llegan por la cámara normal).
+ * Devuelve las partes de ese envío.
+ */
+function registrarParteQR(parte) {
+  if (!qrEscaneo.lotes.has(parte.lote)) qrEscaneo.lotes.set(parte.lote, new Map());
+  const lote = qrEscaneo.lotes.get(parte.lote);
+  lote.set(parte.numero, parte);
+  const partes = {};
+  lote.forEach((p, n) => { partes[n] = p.datos; });
+  guardarLocales({ qrRecibidas: { lote: parte.lote, total: parte.total, partes, en: Date.now() } }).catch(console.error);
+  return lote;
+}
+
+/** Recupera el avance guardado (partes ya recibidas de un envío). */
+function cargarPartesGuardadasQR() {
   qrEscaneo.lotes = new Map();
+  const r = estado.locales.qrRecibidas;
+  if (!r) return;
+  const lote = new Map();
+  Object.entries(r.partes).forEach(([n, datos]) => lote.set(Number(n), { lote: r.lote, numero: Number(n), total: r.total, datos }));
+  qrEscaneo.lotes.set(r.lote, lote);
+}
+
+/**
+ * Llegaron todas las partes: se revisan los datos, se pregunta antes de
+ * recibir (nada se mezcla sin un "Sí") y se aplica la mezcla segura.
+ */
+async function recibirDatosQR(texto64) {
+  let paquete;
+  let datos;
+  try {
+    paquete = JSON.parse(await TucankitCore.descomprimir(TucankitCore.deBase64Url(texto64)));
+    datos = validarPaquete(paquete);
+  } catch (error) {
+    console.error(error);
+    await guardarLocales({ qrRecibidas: null });
+    await confirmar({ titulo: t('qrTitulo'), texto: t('qrInvalido'), botonSi: t('entendido'), peligroso: false, soloAviso: true });
+    return;
+  }
+  const origen = (paquete.dispositivo && paquete.dispositivo.nombre) || t('otroDispositivo');
+  const seguro = await confirmar({
+    titulo: t('qrConfirmarTitulo'),
+    texto: t('qrConfirmarTexto', {
+      origen, clientes: datos.clientes.filter(estaActivo).length, recordatorios: datos.recordatorios.filter(estaActivo).length
+    }),
+    botonSi: t('qrRecibir'),
+    peligroso: false
+  });
+  await guardarLocales({ qrRecibidas: null });
+  qrEscaneo.lotes = new Map();
+  if (!seguro) return;
+  const resumen = await aplicarMezcla(datos, 'qr');
+  alCambiarDatos();
+  redibujar();
+  await confirmar({ titulo: t('qrListo'), texto: textoResumen(resumen), botonSi: t('entendido'), peligroso: false, soloAviso: true });
+}
+
+/**
+ * Si la app se abrió desde un código QR escaneado con la cámara normal
+ * (dirección con "#qr=..."), guarda esa parte y guía a la persona.
+ */
+async function revisarQREnDireccion() {
+  if (!location.hash.startsWith('#qr=')) return;
+  const parte = TucankitCore.leerParteQR(location.hash);
+  // Se quita de la dirección para que no quede en el historial del navegador
+  history.replaceState(null, '', location.pathname + location.search);
+  if (!parte) return;
+  cargarPartesGuardadasQR();
+  const lote = registrarParteQR(parte);
+  const completo = TucankitCore.unirPartesQR([...lote.values()]);
+  if (completo != null) { await recibirDatosQR(completo); return; }
+  const seguir = await confirmar({
+    titulo: t('qrParteRecibidaTitulo', { recibidas: lote.size, total: parte.total }),
+    texto: t('qrParteRecibidaTexto', { faltan: parte.total - lote.size }),
+    botonSi: t('qrSeguirEscaneando'),
+    peligroso: false
+  });
+  if (seguir) abrirEscanearQR();
+}
+
+async function abrirEscanearQR() {
+  cargarPartesGuardadasQR();
   $('qr-escanear-error').hidden = true;
-  $('qr-barra').style.width = '0';
-  $('qr-estado').textContent = t('qrBuscando');
+  const previas = [...qrEscaneo.lotes.values()][0];
+  $('qr-barra').style.width = previas ? `${Math.round((previas.size / [...previas.values()][0].total) * 100)}%` : '0';
+  $('qr-estado').textContent = previas
+    ? t('qrRecibidas', { recibidas: previas.size, total: [...previas.values()][0].total })
+    : t('qrBuscando');
   $('dialogo-qr-escanear').showModal();
   try {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw Object.assign(new Error('sin cámara'), { name: 'NotFoundError' });
@@ -2649,9 +2759,8 @@ async function leerQRDelVideo(video) {
 async function recibirParteQR(texto) {
   const parte = TucankitCore.leerParteQR(texto);
   if (!parte) return false;
-  if (!qrEscaneo.lotes.has(parte.lote)) qrEscaneo.lotes.set(parte.lote, new Map());
-  const lote = qrEscaneo.lotes.get(parte.lote);
-  lote.set(parte.numero, parte);
+  const yaEstaba = qrEscaneo.lotes.has(parte.lote) && qrEscaneo.lotes.get(parte.lote).has(parte.numero);
+  const lote = yaEstaba ? qrEscaneo.lotes.get(parte.lote) : registrarParteQR(parte);
   $('qr-barra').style.width = `${Math.round((lote.size / parte.total) * 100)}%`;
   $('qr-estado').textContent = t('qrRecibidas', { recibidas: lote.size, total: parte.total });
   const completo = TucankitCore.unirPartesQR([...lote.values()]);
@@ -2659,20 +2768,8 @@ async function recibirParteQR(texto) {
 
   qrEscaneo.activo = false;
   detenerCamara();
-  $('qr-estado').textContent = t('qrAplicando');
-  try {
-    const paquete = JSON.parse(await TucankitCore.descomprimir(TucankitCore.deBase45(completo)));
-    const datos = validarPaquete(paquete);
-    const resumen = await aplicarMezcla(datos, 'qr');
-    alCambiarDatos();
-    $('dialogo-qr-escanear').close();
-    redibujar();
-    await confirmar({ titulo: t('qrListo'), texto: textoResumen(resumen), botonSi: t('entendido'), peligroso: false, soloAviso: true });
-  } catch (error) {
-    console.error(error);
-    $('qr-escanear-error').textContent = t('qrInvalido');
-    $('qr-escanear-error').hidden = false;
-  }
+  $('dialogo-qr-escanear').close();
+  await recibirDatosQR(completo);
   return true;
 }
 
@@ -2965,6 +3062,17 @@ function ponerEstadoDrive(nuevo) {
 /** Dibuja la tarjeta de Drive en Ajustes y el aviso de arriba. */
 function dibujarDrive() {
   const l = estado.locales;
+  if (!idClienteConfigurado()) {
+    // Falta el ID de cliente de Google (lo configura el dueño de la app una sola vez)
+    $('drive-estado').dataset.estado = 'pendiente';
+    $('drive-estado').textContent = t('driveNoDisponible');
+    $('drive-detalle').textContent = t('driveNoDisponibleDetalle');
+    $('btn-drive-conectar').hidden = true;
+    $('btn-drive-sincronizar').hidden = true;
+    $('btn-drive-desconectar').hidden = true;
+    $('aviso-drive').hidden = true;
+    return;
+  }
   const activo = Boolean(l.driveActivo);
   const estadoVisible = activo ? drive.estado : 'desconectado';
   $('drive-estado').dataset.estado = estadoVisible;
@@ -3247,6 +3355,7 @@ async function iniciar() {
   }
   mostrarVista('agenda');
   iniciarDrive();
+  revisarQREnDireccion();
 }
 
 iniciar();
