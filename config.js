@@ -6,5 +6,5 @@
    Este ID no es secreto: identifica a la app ante Google.
    ========================================================= */
 window.TUCANKIT_CONFIG = {
-  googleClientId: 'TU-ID-DE-CLIENTE.apps.googleusercontent.com'
+  googleClientId: '936654122486-cme60t3btm9dfvcvmbpsevkmb6ortsg1.apps.googleusercontent.com'
 };

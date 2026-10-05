@@ -118,7 +118,7 @@ la instalación, «Compartir copia» y Google Drive **solo funcionan en `localho
 Cada cambio en archivos de la app sube en 1 el número de `sw.js`:
 
 ```js
-const VERSION = 16;   // cambiar a 17, luego 18, etc.
+const VERSION = 17;   // cambiar a 18, luego 19, etc.
 ```
 
 Si no se sube, los teléfonos que ya tienen la app siguen viendo la versión vieja.
