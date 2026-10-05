@@ -10,7 +10,7 @@
    hay que subir el número de VERSION de aquí abajo (1 → 2 → 3...).
    Si no se sube, los teléfonos seguirán mostrando la versión vieja.
    ========================================================= */
-const VERSION = 7;
+const VERSION = 8;
 const NOMBRE_CACHE = `tucankit-citas-v${VERSION}`;
 
 /** Archivos que se guardan para usar sin internet. */
@@ -18,6 +18,7 @@ const ARCHIVOS = [
   './',
   'index.html',
   'styles.css',
+  'config.js',
   'core.js',
   'app.js',
   'manifest.json',
@@ -81,7 +82,10 @@ self.addEventListener('message', (evento) => {
 self.addEventListener('fetch', (evento) => {
   const pedido = evento.request;
   if (pedido.method !== 'GET') return;
-  if (new URL(pedido.url).origin !== self.location.origin) return; // ej.: wa.me no se toca
+  // Solo se atienden los archivos de la propia app. Todo lo demás (WhatsApp, y los
+  // servicios de Google para Drive: accounts.google.com, googleapis.com) pasa directo:
+  // no se guarda en caché ni se intercepta (regla 3 de CLAUDE.md).
+  if (new URL(pedido.url).origin !== self.location.origin) return;
 
   evento.respondWith(
     caches.match(pedido, { ignoreSearch: true }).then((guardada) => {

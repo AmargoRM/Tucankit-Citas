@@ -15,6 +15,7 @@
     10. Ajustes, plantillas y constructor con clics
     11. Copias de seguridad, copias automáticas y borrar todo
    11b. Pasar datos por código QR
+   11c. Sincronización con Google Drive
     12. Instalación, uso sin internet y almacenamiento
     13. Inicio de la app
    (Fechas, teléfonos, plantillas, montos y la mezcla segura están en core.js)
@@ -316,6 +317,31 @@ const TEXTOS = {
     qrSinCompresion: 'Este navegador es muy antiguo para generar los códigos. Actualícelo, o use Google Drive o la copia de seguridad.',
     cerrar: 'Cerrar',
 
+    // Google Drive
+    driveTitulo: 'Sincronizar con Google Drive',
+    driveExplicacion: 'Opcional. Mantiene iguales sus datos en el celular y la computadora usando SU propio Google Drive. La app solo puede ver el archivo que ella crea («Tucankit Citas - sincronizacion.json»). Tucankit no tiene servidores ni acceso a sus datos.',
+    driveConectar: 'Conectar con Google Drive',
+    driveSincronizarAhora: 'Sincronizar ahora',
+    driveDesconectar: 'Desconectar',
+    driveReconectar: 'Volver a conectar',
+    driveEstado_desconectado: 'Desconectado',
+    driveEstado_conectado: '✓ Conectado',
+    driveEstado_sincronizando: 'Sincronizando…',
+    driveEstado_pendiente: 'Pendiente de sincronizar (sin internet)',
+    driveEstado_reconectar: 'El permiso de Google venció',
+    driveEstado_error: 'No se pudo sincronizar: {error}',
+    driveAviso_pendiente: 'Pendiente de sincronizar: no hay internet. Sus cambios están guardados aquí y se enviarán al volver la conexión.',
+    driveAviso_reconectar: 'El permiso de Google Drive venció (dura una hora). Sus datos están a salvo aquí; toque para volver a conectar y seguir sincronizando.',
+    driveAviso_error: 'No se pudo sincronizar con Google Drive: {error}',
+    driveCuenta: 'Cuenta: {cuenta}',
+    driveUltima: 'Última sincronización: {momento}',
+    driveNunca: 'Todavía no se sincronizó',
+    driveSinConfigurar: 'Falta configurar el ID de cliente de Google en el archivo config.js. Siga la guía docs/google-drive.md.',
+    driveSinInternet: 'Para conectar con Google Drive necesita internet.',
+    driveNoConectado: 'No se pudo conectar con Google Drive. Intente de nuevo.',
+    driveDesconectarTitulo: '¿Dejar de sincronizar?',
+    driveDesconectarTexto: 'Este dispositivo deja de sincronizar. Sus datos aquí NO se borran.\n\nEl archivo «Tucankit Citas - sincronizacion.json» queda en su Google Drive; si quiere, puede borrarlo desde drive.google.com.',
+
     // Avisos
     avisoActualizacion: 'Hay una versión nueva. Toque para actualizar.',
     avisoNegocio: 'Escriba el nombre de su negocio en Ajustes para que aparezca en los mensajes.',
@@ -481,7 +507,15 @@ function localesPorDefecto() {
     ayudaIphoneOculta: false,
     ultimaCopia: null,
     primerUso: Date.now(),
-    envioGrupo: { grupo: '', mensaje: t('grupoMensajeInicial'), enviados: [] }
+    envioGrupo: { grupo: '', mensaje: t('grupoMensajeInicial'), enviados: [] },
+    // Google Drive (propio de este dispositivo; nunca se sincroniza)
+    driveActivo: false,
+    driveToken: '',        // permiso temporal de Google (~1 hora)
+    driveTokenVence: 0,
+    driveArchivoId: '',
+    driveCuenta: '',
+    driveUltimaSync: null,
+    drivePendiente: false
   };
 }
 
@@ -533,6 +567,11 @@ function normalizarLocales(a = {}) {
   r.ayudaIphoneOculta = a.ayudaIphoneOculta === true;
   if (typeof a.ultimaCopia === 'number') r.ultimaCopia = a.ultimaCopia;
   if (typeof a.primerUso === 'number') r.primerUso = a.primerUso;
+  r.driveActivo = a.driveActivo === true;
+  r.drivePendiente = a.drivePendiente === true;
+  ['driveToken', 'driveArchivoId', 'driveCuenta'].forEach((k) => { if (typeof a[k] === 'string') r[k] = a[k]; });
+  if (typeof a.driveTokenVence === 'number') r.driveTokenVence = a.driveTokenVence;
+  if (typeof a.driveUltimaSync === 'number') r.driveUltimaSync = a.driveUltimaSync;
   const g = a.envioGrupo;
   if (g && typeof g === 'object') {
     r.envioGrupo = {
@@ -2296,6 +2335,314 @@ function cerrarEscanearQR() {
 }
 
 /* =========================================================
+   11c. SINCRONIZACIÓN CON EL GOOGLE DRIVE DEL USUARIO
+   - Solo funciona si la persona la activa (regla 3 de CLAUDE.md).
+   - Inicio de sesión: Google Identity Services, en el navegador, sin servidor.
+   - Permiso pedido: SOLO "drive.file" (la app solo ve los archivos que ella creó).
+   - Un único archivo: "Tucankit Citas - sincronizacion.json".
+   - Proceso: descargar → mezclar (mezcla segura) → guardar aquí → subir.
+     Si el archivo cambió en Drive mientras tanto, se vuelve a mezclar antes de subir.
+   ========================================================= */
+const DRIVE_PERMISO = 'https://www.googleapis.com/auth/drive.file';
+const DRIVE_ARCHIVO = 'Tucankit Citas - sincronizacion.json';
+const DRIVE_API = 'https://www.googleapis.com/drive/v3';
+const DRIVE_SUBIDA = 'https://www.googleapis.com/upload/drive/v3';
+const GOOGLE_SCRIPT = 'https://accounts.google.com/gsi/client';
+const ESPERA_TRAS_CAMBIO_MS = 4000;   // agrupa varios cambios seguidos
+const MARGEN_VENCIMIENTO_MS = 60000;  // el permiso se considera vencido 1 minuto antes
+
+const drive = {
+  estado: 'desconectado', // desconectado | conectado | sincronizando | pendiente | reconectar | error
+  mensajeError: '',
+  temporizador: null,
+  enCurso: null,           // sincronización en marcha (para no hacer dos a la vez)
+  otraVez: false,          // hubo cambios durante una sincronización: repetir al terminar
+  tiempoMaximoMs: 30000    // si Drive no responde en 30 s, se corta (internet inestable)
+};
+
+/** Error especial: el permiso de Google venció o fue retirado. */
+class ErrorPermisoDrive extends Error {}
+
+const idClienteGoogle = () => (window.TUCANKIT_CONFIG && window.TUCANKIT_CONFIG.googleClientId) || '';
+const idClienteConfigurado = () => /\.apps\.googleusercontent\.com$/.test(idClienteGoogle()) && !idClienteGoogle().startsWith('TU-ID');
+const tokenVigente = () => estado.locales.driveToken && estado.locales.driveTokenVence > Date.now() + MARGEN_VENCIMIENTO_MS;
+
+/**
+ * Pide a Google un permiso temporal (dura ~1 hora). Abre la ventanita de Google,
+ * por eso solo se llama cuando la persona toca un botón.
+ */
+async function pedirPermisoGoogle({ elegirCuenta = false } = {}) {
+  await cargarScript(GOOGLE_SCRIPT);
+  return new Promise((resolver, rechazar) => {
+    const cliente = window.google.accounts.oauth2.initTokenClient({
+      client_id: idClienteGoogle(),
+      scope: DRIVE_PERMISO,
+      callback: (respuesta) => {
+        if (respuesta.error || !respuesta.access_token) { rechazar(new Error(respuesta.error || 'sin permiso')); return; }
+        if (!window.google.accounts.oauth2.hasGrantedAllScopes(respuesta, DRIVE_PERMISO)) { rechazar(new Error('permiso no concedido')); return; }
+        resolver({ token: respuesta.access_token, vence: Date.now() + (Number(respuesta.expires_in) || 3600) * 1000 });
+      },
+      error_callback: (error) => rechazar(new Error((error && error.type) || 'ventana cerrada'))
+    });
+    cliente.requestAccessToken({ prompt: elegirCuenta ? 'select_account' : '' });
+  });
+}
+
+/** Llamada a la API de Drive con el permiso actual. */
+async function pedirDrive(url, opciones = {}) {
+  if (!tokenVigente()) throw new ErrorPermisoDrive('vencido');
+  // Sin respuesta en el tiempo máximo, se corta: así una conexión trabada no frena todo
+  const corte = new AbortController();
+  const reloj = setTimeout(() => corte.abort(), drive.tiempoMaximoMs);
+  let respuesta;
+  try {
+    respuesta = await fetch(url, {
+      ...opciones,
+      signal: corte.signal,
+      headers: { ...(opciones.headers || {}), Authorization: `Bearer ${estado.locales.driveToken}` }
+    });
+  } catch (error) {
+    throw new TypeError('Sin conexión con Drive'); // se trata como "sin internet": queda pendiente
+  } finally {
+    clearTimeout(reloj);
+  }
+  if (respuesta.status === 401) throw new ErrorPermisoDrive('vencido');
+  if (!respuesta.ok) throw new Error(`Drive respondió ${respuesta.status}`);
+  return respuesta;
+}
+
+/** Busca el archivo de sincronización (la app solo ve los archivos que ella creó). */
+async function buscarArchivoDrive() {
+  const q = encodeURIComponent(`name='${DRIVE_ARCHIVO}' and trashed=false`);
+  const r = await pedirDrive(`${DRIVE_API}/files?q=${q}&spaces=drive&orderBy=modifiedTime desc&fields=files(id,version)`);
+  const { files } = await r.json();
+  return files && files.length ? files[0].id : null;
+}
+
+/** Versión actual del archivo en Drive (cambia cada vez que alguien lo sube). */
+async function versionArchivoDrive(id) {
+  const r = await pedirDrive(`${DRIVE_API}/files/${id}?fields=id,version,trashed`);
+  const meta = await r.json();
+  return meta.trashed ? null : String(meta.version);
+}
+
+async function descargarArchivoDrive(id) {
+  const r = await pedirDrive(`${DRIVE_API}/files/${id}?alt=media`);
+  return r.text();
+}
+
+/** Crea el archivo en Drive. Devuelve su id. */
+async function crearArchivoDrive(contenido) {
+  const limite = 'tucankit' + Math.random().toString(36).slice(2);
+  const metadatos = { name: DRIVE_ARCHIVO, mimeType: 'application/json', description: 'Datos de Tucankit Citas. Lo usa la app para sincronizar sus dispositivos.' };
+  const cuerpo = `--${limite}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadatos)}\r\n`
+    + `--${limite}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${contenido}\r\n--${limite}--`;
+  const r = await pedirDrive(`${DRIVE_SUBIDA}/files?uploadType=multipart&fields=id,version`, {
+    method: 'POST', headers: { 'Content-Type': `multipart/related; boundary=${limite}` }, body: cuerpo
+  });
+  return (await r.json()).id;
+}
+
+async function actualizarArchivoDrive(id, contenido) {
+  await pedirDrive(`${DRIVE_SUBIDA}/files/${id}?uploadType=media&fields=id,version`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json; charset=UTF-8' }, body: contenido
+  });
+}
+
+/** Datos de este dispositivo en el formato de la mezcla. */
+const datosLocalesParaMezcla = () => ({
+  clientes: estado.clientes, recordatorios: estado.recordatorios, etiquetas: estado.etiquetas, ajustes: estado.compartidos
+});
+
+/** ¿La mezcla cambia algo? */
+const hayCambios = (r) => r.agregados + r.actualizados + r.borrados > 0;
+
+/**
+ * Sincroniza ahora. "interactivo" = la persona tocó un botón (se puede abrir
+ * la ventanita de Google si el permiso venció).
+ */
+async function sincronizarDrive({ interactivo = false } = {}) {
+  if (!estado.locales.driveActivo) return;
+  if (drive.enCurso) { drive.otraVez = true; return drive.enCurso; }
+  const tarea = (async () => {
+    try {
+      if (!navigator.onLine) { await marcarPendiente(); return; }
+      if (!tokenVigente()) {
+        if (!interactivo) { ponerEstadoDrive('reconectar'); return; }
+        const permiso = await pedirPermisoGoogle();
+        await guardarLocales({ driveToken: permiso.token, driveTokenVence: permiso.vence });
+      }
+      ponerEstadoDrive('sincronizando');
+
+      let resumenTotal = { agregados: 0, actualizados: 0, borrados: 0 };
+      for (let intento = 1; intento <= 4; intento += 1) {
+        // 1) Encontrar el archivo (o saber que no existe todavía)
+        let id = estado.locales.driveArchivoId || await buscarArchivoDrive();
+        let version = id ? await versionArchivoDrive(id).catch(() => null) : null;
+        if (id && version == null) { id = await buscarArchivoDrive(); version = id ? await versionArchivoDrive(id) : null; }
+
+        // 2) Descargar y mezclar con lo de aquí
+        if (id) {
+          const remoto = validarPaquete(JSON.parse(await descargarArchivoDrive(id)));
+          const previa = mezclarDatos(datosLocalesParaMezcla(), remoto, CLAVES_COMPARTIDAS);
+          if (hayCambios(previa.resumen)) {
+            const resumen = await aplicarMezcla(remoto, 'sincronizacion'); // guarda copia automática antes
+            resumenTotal = {
+              agregados: resumenTotal.agregados + resumen.agregados,
+              actualizados: resumenTotal.actualizados + resumen.actualizados,
+              borrados: resumenTotal.borrados + resumen.borrados
+            };
+          }
+          // ¿Lo de aquí trae algo que Drive no tiene? Si no, no hace falta subir
+          const haciaDrive = mezclarDatos(remoto, datosLocalesParaMezcla(), CLAVES_COMPARTIDAS);
+          if (!hayCambios(haciaDrive.resumen)) { await terminarSincronizacion(id, resumenTotal); return; }
+        }
+
+        // 3) Antes de subir: si el archivo cambió en Drive mientras tanto, repetir
+        if (id && (await versionArchivoDrive(id)) !== version) continue;
+        const contenido = JSON.stringify(paqueteDatos());
+        if (id) await actualizarArchivoDrive(id, contenido);
+        else id = await crearArchivoDrive(contenido);
+        await terminarSincronizacion(id, resumenTotal);
+        return;
+      }
+      throw new Error('El archivo de Drive cambia demasiado seguido; se intentará de nuevo.');
+    } catch (error) {
+      if (error instanceof ErrorPermisoDrive) {
+        await guardarLocales({ driveToken: '', driveTokenVence: 0 });
+        ponerEstadoDrive('reconectar');
+      } else if (!navigator.onLine || error instanceof TypeError) {
+        await marcarPendiente(); // TypeError = falló la conexión
+      } else {
+        console.error('Sincronización:', error);
+        drive.mensajeError = error.message || String(error);
+        ponerEstadoDrive('error');
+      }
+    }
+  })();
+  // El turno se libera cuando la tarea termina de verdad (aunque haya terminado al instante)
+  drive.enCurso = tarea;
+  tarea.finally(() => {
+    if (drive.enCurso === tarea) drive.enCurso = null;
+    if (drive.otraVez) { drive.otraVez = false; programarSincronizacion(); }
+  });
+  return tarea;
+}
+
+async function terminarSincronizacion(id, resumen) {
+  await guardarLocales({ driveArchivoId: id, driveUltimaSync: Date.now(), drivePendiente: false });
+  ponerEstadoDrive('conectado');
+  if (hayCambios(resumen)) {
+    redibujar();
+    avisar(textoResumen(resumen), 5);
+  }
+}
+
+async function marcarPendiente() {
+  await guardarLocales({ drivePendiente: true });
+  ponerEstadoDrive('pendiente');
+}
+
+/** Se llama después de cada cambio: sincroniza unos segundos después (agrupando cambios). */
+function programarSincronizacion() {
+  if (!estado.locales || !estado.locales.driveActivo) return;
+  clearTimeout(drive.temporizador);
+  drive.temporizador = setTimeout(() => sincronizarDrive(), ESPERA_TRAS_CAMBIO_MS);
+  if (!navigator.onLine) marcarPendiente().catch(console.error);
+}
+
+/** Botón "Conectar con Google Drive". */
+async function conectarDrive() {
+  if (!idClienteConfigurado()) {
+    await confirmar({ titulo: t('driveTitulo'), texto: t('driveSinConfigurar'), botonSi: t('entendido'), peligroso: false, soloAviso: true });
+    return;
+  }
+  if (!navigator.onLine) { avisar(t('driveSinInternet'), 4); return; }
+  try {
+    const permiso = await pedirPermisoGoogle({ elegirCuenta: true });
+    await guardarLocales({ driveActivo: true, driveToken: permiso.token, driveTokenVence: permiso.vence, driveArchivoId: '' });
+    // Nombre de la cuenta (para mostrarlo en Ajustes)
+    try {
+      const r = await pedirDrive(`${DRIVE_API}/about?fields=user(emailAddress,displayName)`);
+      const { user } = await r.json();
+      await guardarLocales({ driveCuenta: (user && (user.emailAddress || user.displayName)) || '' });
+    } catch (error) { console.warn('No se pudo leer la cuenta:', error); }
+    await sincronizarDrive({ interactivo: true });
+  } catch (error) {
+    console.warn('Conectar Drive:', error);
+    avisar(t('driveNoConectado'), 5);
+  }
+  dibujarDrive();
+}
+
+/** Botón "Volver a conectar" (cuando el permiso de Google venció). */
+async function reconectarDrive() {
+  try {
+    const permiso = await pedirPermisoGoogle();
+    await guardarLocales({ driveToken: permiso.token, driveTokenVence: permiso.vence });
+    await sincronizarDrive({ interactivo: true });
+  } catch (error) {
+    console.warn('Reconectar Drive:', error);
+    avisar(t('driveNoConectado'), 5);
+  }
+}
+
+/** Botón "Desconectar": deja de sincronizar. Los datos de este dispositivo no se tocan. */
+async function desconectarDrive() {
+  const seguro = await confirmar({ titulo: t('driveDesconectarTitulo'), texto: t('driveDesconectarTexto'), botonSi: t('driveDesconectar'), peligroso: false });
+  if (!seguro) return;
+  const token = estado.locales.driveToken;
+  if (token && window.google && window.google.accounts) {
+    try { window.google.accounts.oauth2.revoke(token, () => {}); } catch (error) { console.warn(error); }
+  }
+  clearTimeout(drive.temporizador);
+  await guardarLocales({ driveActivo: false, driveToken: '', driveTokenVence: 0, driveArchivoId: '', driveCuenta: '', drivePendiente: false });
+  ponerEstadoDrive('desconectado');
+}
+
+/** Cambia el estado visible de la sincronización. */
+function ponerEstadoDrive(nuevo) {
+  drive.estado = nuevo;
+  dibujarDrive();
+}
+
+/** Dibuja la tarjeta de Drive en Ajustes y el aviso de arriba. */
+function dibujarDrive() {
+  const l = estado.locales;
+  const activo = Boolean(l.driveActivo);
+  const estadoVisible = activo ? drive.estado : 'desconectado';
+  $('drive-estado').dataset.estado = estadoVisible;
+  $('drive-estado').textContent = t('driveEstado_' + estadoVisible, { error: drive.mensajeError });
+  const partes = [];
+  if (activo && l.driveCuenta) partes.push(t('driveCuenta', { cuenta: l.driveCuenta }));
+  if (activo) partes.push(l.driveUltimaSync ? t('driveUltima', { momento: momentoAmigable(l.driveUltimaSync) }) : t('driveNunca'));
+  $('drive-detalle').textContent = partes.join(' · ');
+  $('btn-drive-conectar').hidden = activo;
+  $('btn-drive-sincronizar').hidden = !activo;
+  $('btn-drive-desconectar').hidden = !activo;
+  $('btn-drive-sincronizar').disabled = drive.estado === 'sincronizando';
+
+  // Aviso de arriba: solo cuando hace falta que la persona haga algo
+  const aviso = $('aviso-drive');
+  const necesitaAccion = activo && (drive.estado === 'reconectar' || drive.estado === 'pendiente' || drive.estado === 'error');
+  aviso.hidden = !necesitaAccion;
+  if (necesitaAccion) {
+    $('aviso-drive-texto').textContent = t('driveAviso_' + drive.estado, { error: drive.mensajeError });
+    $('aviso-drive-boton').textContent = t(drive.estado === 'reconectar' ? 'driveReconectar' : 'driveSincronizarAhora');
+  }
+}
+
+/** Al abrir la app: si la sincronización está activa, sincroniza. */
+function iniciarDrive() {
+  window.addEventListener('online', () => sincronizarDrive());
+  window.addEventListener('offline', () => { if (estado.locales.driveActivo) marcarPendiente().catch(console.error); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') sincronizarDrive(); });
+  if (!estado.locales.driveActivo) { ponerEstadoDrive('desconectado'); return; }
+  ponerEstadoDrive(estado.locales.drivePendiente ? 'pendiente' : 'conectado');
+  sincronizarDrive();
+}
+
+/* =========================================================
    12. INSTALACIÓN, USO SIN INTERNET Y ALMACENAMIENTO
    ========================================================= */
 let eventoInstalacion = null;
@@ -2476,6 +2823,12 @@ function conectarEventos() {
   $('qr-escanear-cerrar').addEventListener('click', cerrarEscanearQR);
   $('dialogo-qr-escanear').addEventListener('close', detenerCamara);
 
+  // Google Drive
+  $('btn-drive-conectar').addEventListener('click', conectarDrive);
+  $('btn-drive-sincronizar').addEventListener('click', () => sincronizarDrive({ interactivo: true }));
+  $('btn-drive-desconectar').addEventListener('click', desconectarDrive);
+  $('aviso-drive-boton').addEventListener('click', () => (drive.estado === 'reconectar' ? reconectarDrive() : sincronizarDrive({ interactivo: true })));
+
   // Avisos e instalación
   prepararInstalacion();
   $('aviso-iphone-cerrar').addEventListener('click', () => guardarLocales({ ayudaIphoneOculta: true }).then(revisarAyudaIphone));
@@ -2521,6 +2874,7 @@ async function iniciar() {
     return;
   }
   mostrarVista('agenda');
+  iniciarDrive();
 }
 
 iniciar();

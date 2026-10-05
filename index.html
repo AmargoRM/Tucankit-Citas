@@ -48,6 +48,13 @@
 
     <div id="aviso-error" class="aviso aviso-peligro" role="alert" hidden></div>
 
+    <div id="aviso-drive" class="aviso aviso-acento" hidden>
+      <p id="aviso-drive-texto"></p>
+      <div class="aviso-botones">
+        <button id="aviso-drive-boton" class="boton boton-accion boton-chico" type="button" data-t="driveReconectar"></button>
+      </div>
+    </div>
+
     <div id="aviso-migracion" class="aviso aviso-info" hidden>
       <p id="aviso-migracion-texto"></p>
       <div class="aviso-botones">
@@ -310,6 +317,18 @@
       </div>
 
       <div class="tarjeta">
+        <h3 data-t="driveTitulo"></h3>
+        <p class="ayuda" data-t="driveExplicacion"></p>
+        <p id="drive-estado" class="drive-estado"></p>
+        <p id="drive-detalle" class="ayuda"></p>
+        <div class="botones-columna">
+          <button id="btn-drive-conectar" class="boton boton-accion boton-ancho" type="button" data-t="driveConectar"></button>
+          <button id="btn-drive-sincronizar" class="boton boton-accion boton-ancho" type="button" data-t="driveSincronizarAhora" hidden></button>
+          <button id="btn-drive-desconectar" class="boton boton-fantasma-oscuro boton-ancho" type="button" data-t="driveDesconectar" hidden></button>
+        </div>
+      </div>
+
+      <div class="tarjeta">
         <h3 data-t="copiaTitulo"></h3>
         <p class="ayuda" data-t="copiaExplicacion"></p>
         <p class="ayuda" id="copia-ultima"></p>
@@ -554,6 +573,7 @@
     </article>
   </template>
 
+  <script src="config.js"></script>
   <script src="core.js"></script>
   <script src="app.js"></script>
 </body>
