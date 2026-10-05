@@ -7,6 +7,24 @@ Al final vas a tener un «ID de cliente» que se copia en el archivo `config.js`
 > Le dice a Google: «esta app se llama Tucankit Citas y vive en estas direcciones web».
 > **No es una contraseña**: puede estar a la vista en el código sin riesgo.
 
+## ¿Queda vinculada mi cuenta de Google?
+
+Sí y no. Conviene separar dos cosas:
+
+| | Tu cuenta (la del dueño de Tucankit) | La cuenta de cada persona que usa la app |
+|---|---|---|
+| Para qué se usa | Para **registrar** la app ante Google (crear el proyecto y el ID de cliente). | Para **guardar sus propios datos** en su propio Drive. |
+| Qué ve la persona | Tu correo aparece como «contacto» en la ventanita de permiso de Google. | — |
+| ¿Dónde quedan los datos? | **Nunca en tu Drive.** Vos no podés verlos. | En **su** Drive, en el archivo «Tucankit Citas - sincronizacion.json». |
+| Costo | Gratis. No pide tarjeta. | Gratis (usa el espacio de su Drive; el archivo pesa muy poco). |
+
+- Tu Drive personal **no se usa** para nada: no se llena ni se comparte.
+- Si algún día borrás el proyecto de Google Cloud, la sincronización deja de funcionar para todos,
+  pero los datos **no se pierden**: siguen en cada teléfono y en el Drive de cada persona.
+- **Recomendación:** crear el proyecto con un Gmail del negocio (por ejemplo `tucankit.app@gmail.com`)
+  en vez del personal, para que el correo que ven los usuarios sea el del negocio y puedas pasarle
+  el proyecto a otra persona sin entregar tu cuenta personal.
+
 Google cambia de vez en cuando los nombres de los menús. Si algo no coincide exactamente,
 buscá el nombre más parecido. Entre paréntesis pongo cómo puede aparecer en inglés.
 

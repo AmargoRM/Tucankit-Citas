@@ -17,9 +17,17 @@ La app **no envía mensajes sola**: arma el mensaje y abre WhatsApp con el texto
 - **Mensajes** por tipo, armables con clics (saludo, tú/usted, confirmar, dirección, despedida),
   firma opcional y enlaces para que el cliente responda con un toque.
 - **Estados de respuesta:** confirmó, canceló, pagó, respondió.
-- **Grupos:** mensaje a todos los clientes de una etiqueta, en fila (un toque por mensaje).
-- **Varios dispositivos sin servidor:** por código QR (sin internet; funciona con el escáner de la app
-  o con la cámara normal del celular) o con el **Google Drive del propio usuario**.
+- **Grupos:** por etiqueta (puesta a mano) o por servicio o producto (automático: por ejemplo, «Zapatos»
+  junta a los clientes que tienen «Zapatos» en algún recordatorio). Sirven para filtrar en Clientes y para
+  mandar un mensaje a todos, en fila (un toque por mensaje).
+- **Pasar datos a otro dispositivo:** «Compartir copia» envía el archivo de respaldo por WhatsApp,
+  correo, Drive o AirDrop/Nearby; en el otro dispositivo, «Restaurar copia».
+- **Sincronización automática opcional** con el **Google Drive del propio usuario**.
+- **WhatsApp en computadora:** WhatsApp Web (en el navegador) o la app de WhatsApp de escritorio.
+  WhatsApp Web, por seguridad, abre una pestaña nueva por mensaje; la app de escritorio usa siempre
+  la misma ventana y guarda como borrador lo que no se envió.
+- **Guía de bienvenida** la primera vez que se abre la app (se puede volver a ver en Ajustes).
+- **Ajustes en secciones desplegables.** Tocar el logo vuelve al inicio.
 - **Aviso de pendientes:** al abrir la app muestra cuántos recordatorios faltan enviar (hoy y mañana)
   y pone el número en el ícono de la app instalada, donde el sistema lo permite.
   Sin servidor no se puede avisar con la app cerrada.
@@ -35,13 +43,12 @@ Reglas del proyecto: ver [`CLAUDE.md`](CLAUDE.md).
 | `index.html` | Estructura de las pantallas. |
 | `styles.css` | Colores y diseño (los colores de marca están al principio). |
 | `config.js` | ID de cliente de Google para la sincronización (valor de ejemplo hasta configurarlo). |
-| `core.js` | Funciones reutilizables, sin pantalla ni base de datos: teléfonos, fechas, plantillas, montos, **mezcla segura** y empaquetado para QR. |
-| `app.js` | Pantallas, base de datos del dispositivo, copias, QR, Drive e instalación. Textos en el objeto `TEXTOS`. |
+| `core.js` | Funciones reutilizables, sin pantalla ni base de datos: teléfonos, fechas, plantillas, montos, horario y **mezcla segura**. |
+| `app.js` | Pantallas, base de datos del dispositivo, copias, Drive, bienvenida e instalación. Textos en el objeto `TEXTOS`. |
 | `sw.js` | Service worker: guarda la app para usarla sin internet. **Tiene un número de versión.** |
 | `manifest.json` | Datos para instalar la app. |
 | `privacidad.html` | Política de privacidad. |
 | `icons/` | Íconos (se regeneran con `python3 tools/generar_iconos.py`). |
-| `vendor/` | Bibliotecas para QR copiadas en el repositorio, con su licencia (ver `vendor/README.md`). |
 | `docs/google-drive.md` | Guía paso a paso para activar Google Drive. |
 | `pruebas/core.test.js` | Pruebas automáticas de `core.js` (`node pruebas/core.test.js`). No forman parte de la app. |
 | `CLAUDE.md` | Reglas permanentes del proyecto. |
@@ -79,7 +86,6 @@ cada persona tiene que **mudar sus datos** de una de estas formas:
    Ajustes → «Restaurar copia» → «Mezclar».
 2. **Google Drive:** conectar Drive en la dirección vieja (se suben los datos) y luego en la nueva
    (se bajan solos). Las dos direcciones deben estar autorizadas en Google (ver la guía).
-3. **Código QR:** abrir la dirección vieja en un dispositivo y la nueva en otro, y pasar los datos por QR.
 
 Cuando la app detecta que funciona en `github.io`, muestra un aviso que lo explica.
 
@@ -90,7 +96,7 @@ python3 -m http.server 8000
 ```
 
 y abrir <http://localhost:8000>. No abra `index.html` con doble clic: el modo sin internet,
-la instalación, la cámara y Google Drive **solo funcionan en `localhost` o con `https://`**.
+la instalación, «Compartir copia» y Google Drive **solo funcionan en `localhost` o con `https://`**.
 
 ## Sincronización y mezcla segura
 
@@ -112,7 +118,7 @@ la instalación, la cámara y Google Drive **solo funcionan en `localhost` o con
 Cada cambio en archivos de la app sube en 1 el número de `sw.js`:
 
 ```js
-const VERSION = 15;   // cambiar a 16, luego 17, etc.
+const VERSION = 16;   // cambiar a 17, luego 18, etc.
 ```
 
 Si no se sube, los teléfonos que ya tienen la app siguen viendo la versión vieja.
@@ -121,7 +127,9 @@ Si se agrega un archivo nuevo a la app, también va en la lista `ARCHIVOS` de `s
 ## Copias de seguridad
 
 - Formato 1 (versión 1 de la app): `{ app, version: 1, citas, ajustes }`.
-- Formato 2 (actual): `{ app, version: 2, creada, dispositivo, datos: { clientes, recordatorios, etiquetas, ajustes } }`.
+- Formato 2 (actual): `{ app, version: 2, creada, dispositivo, datos: { clientes, recordatorios, etiquetas, productos, ajustes } }`.
+- «Compartir copia» manda el mismo contenido como `.txt` (Android no deja compartir `.json`);
+  «Restaurar copia» acepta los dos.
 - Se aceptan ambos. Al restaurar se puede «Mezclar» (recupera lo borrado sin perder lo nuevo)
   o «Reemplazar todo».
 
