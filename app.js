@@ -1,19 +1,22 @@
 /* =========================================================
    Tucankit Citas — lógica de la app
-   JavaScript puro, sin librerías. Todo se guarda en el teléfono.
+   JavaScript puro, sin librerías. Todo se guarda en el dispositivo.
 
    Índice de secciones:
      1. Textos de la interfaz
      2. Atajos y utilidades
-     (Fechas, teléfonos y plantillas están en core.js)
-     3. Base de datos (IndexedDB)
-     4. Lista de citas y pestañas
-     5. Formulario de cita
-     6. Recordatorio por WhatsApp
-     7. Ajustes y plantilla del mensaje
-     8. Copia de seguridad, restaurar y borrar todo
-     9. Instalación, uso sin internet y almacenamiento
-    10. Inicio de la app
+     3. Base de datos (IndexedDB) y reorganización de datos viejos
+     4. Guardar cambios (sellados para la sincronización)
+     5. Agenda: lista de recordatorios y pestañas
+     6. Formulario de recordatorio
+     7. Clientes, ficha e historial
+     8. Envío a WhatsApp y estados de respuesta
+     9. Envío en fila a un grupo
+    10. Ajustes, plantillas y constructor con clics
+    11. Copias de seguridad, copias automáticas y borrar todo
+    12. Instalación, uso sin internet y almacenamiento
+    13. Inicio de la app
+   (Fechas, teléfonos, plantillas, montos y la mezcla segura están en core.js)
    ========================================================= */
 'use strict';
 
@@ -22,138 +25,269 @@
    Todos los textos visibles están aquí.
    Para agregar otro idioma (por ejemplo portugués):
      - copiar el bloque "es" completo y llamarlo "pt",
-     - hacer lo mismo con los datos de idioma de core.js (fechas y plantilla),
+     - hacer lo mismo con los datos de idioma de core.js,
      - traducir los textos (sin tocar lo que está entre { }),
      - cambiar IDIOMA a 'pt'.
-   Lo que está entre { } se reemplaza por datos reales.
    ========================================================= */
 const IDIOMA = 'es';
 
-/* Funciones de fechas, teléfonos y plantillas: vienen de core.js
-   (que se carga antes que este archivo en index.html). */
 const {
-  VARIABLES, armarMensaje, plantillaPorDefecto,
-  FORMATO_FECHA, FORMATO_HORA, hoyTexto, mananaTexto, sumarDias,
+  TIPOS, VARIABLES_COMUNES, variablesDeTipo, armarMensaje, plantillaPorDefecto,
+  opcionesPorDefecto, construirPlantilla, textoEnlacesRespuesta, leerMonto, formatearMonto,
+  FORMATO_FECHA, FORMATO_HORA, hoyTexto, mananaTexto, sumarDias, fechaATexto,
   fechaAmigable, horaAmigable, momentoAmigable,
-  normalizarTelefono, telefonoValido, formatearTelefono, enlaceWhatsApp
+  normalizarTelefono, telefonoValido, formatearTelefono, enlaceWhatsApp,
+  sellar, marcarBorrado, estaActivo, mezclarDatos
 } = TucankitCore;
 TucankitCore.usarIdioma(IDIOMA);
 
 const TEXTOS = {
   es: {
-    // (Los nombres de días y meses y la plantilla por defecto están en core.js)
-
-    // Encabezado y pie
+    // Encabezado, pie y navegación
     nombreProducto: 'Citas',
     instalar: 'Instalar app',
     ajustes: 'Ajustes',
     privacidad: 'Política de privacidad',
+    navAgenda: 'Agenda',
+    navClientes: 'Clientes',
+    navGrupos: 'Grupos',
 
-    // Pestañas y lista
+    // Tipos de recordatorio
+    tipo_cita: 'Cita',
+    tipo_entrega: 'Entrega',
+    tipo_cobro: 'Cobro',
+    tipo_seguimiento: 'Seguimiento',
+    tipo_llego: 'Ya llegó',
+    filtroTodos: 'Todos',
+
+    // Agenda
     pestanaManana: 'Mañana',
     pestanaHoy: 'Hoy',
     pestanaProximas: 'Próximas',
     pestanaTodas: 'Todas',
     tituloManana: 'Mañana · {fecha}',
     tituloHoy: 'Hoy · {fecha}',
-    tituloProximas: 'Próximas citas',
-    tituloTodas: 'Todas las citas',
+    tituloProximas: 'Próximos recordatorios',
+    tituloTodas: 'Todos los recordatorios',
     grupoHoy: 'Hoy · {fecha}',
     grupoManana: 'Mañana · {fecha}',
-    vacioManana: 'No hay citas para mañana.',
-    vacioHoy: 'No hay citas para hoy.',
-    vacioProximas: 'No hay citas próximas.',
-    vacioTodas: 'Todavía no hay citas. Toque «+ Nueva cita» para crear la primera.',
-    nuevaCita: '+ Nueva cita',
+    vacioManana: 'No hay recordatorios para mañana.',
+    vacioHoy: 'No hay recordatorios para hoy.',
+    vacioProximas: 'No hay recordatorios próximos.',
+    vacioTodas: 'Todavía no hay recordatorios. Toque «+ Nuevo» para crear el primero.',
+    nuevoRecordatorio: '+ Nuevo',
+    nuevoCliente: '+ Nuevo cliente',
 
-    // Tarjeta de cita
+    // Tarjeta de recordatorio
     enviarRecordatorio: 'Enviar recordatorio',
     reenviarRecordatorio: 'Volver a enviar',
-    recordatorioEnviado: '✓ Recordatorio enviado: {momento}',
+    recordatorioEnviado: '✓ Enviado: {momento}',
     desmarcar: 'Desmarcar',
     editar: 'Editar',
     eliminar: 'Eliminar',
+    sinHora: 'Sin hora',
+    respuestaTitulo: 'Respuesta:',
+    resp_confirmo: 'Confirmó',
+    resp_cancelo: 'Canceló',
+    resp_pago: 'Pagó',
+    resp_respondio: 'Respondió',
 
-    // Formulario de cita
-    tituloNuevaCita: 'Nueva cita',
-    tituloEditarCita: 'Editar cita',
-    campoNombre: 'Nombre del cliente',
+    // Formulario de recordatorio
+    tituloNuevoRecordatorio: 'Nuevo recordatorio',
+    tituloEditarRecordatorio: 'Editar recordatorio',
+    campoTipo: 'Tipo',
+    campoCliente: 'Cliente',
+    cambiar: 'Cambiar',
+    buscarOCrearCliente: 'Escriba el nombre o teléfono',
+    crearClienteCon: '+ Crear cliente «{texto}»',
+    crearClienteNuevo: '+ Cliente nuevo',
+    clienteNuevoTitulo: 'Cliente nuevo',
+    campoNombre: 'Nombre',
     campoTelefono: 'Teléfono (WhatsApp)',
     campoFecha: 'Fecha',
-    campoHora: 'Hora',
-    campoServicio: 'Servicio',
+    horaObligatoria: 'Hora',
+    horaOpcional: 'Hora (opcional)',
+    campoMonto: 'Monto ({moneda})',
+    campoPago: 'Forma de pago',
+    ejemploMonto: 'Ej.: 15.000',
+    ejemploPagoCorto: 'Ej.: SINPE Móvil',
+    detalle_cita: 'Servicio',
+    detalle_entrega: 'Qué se entrega',
+    detalle_cobro: 'Concepto (opcional)',
+    detalle_seguimiento: 'Sobre qué (opcional)',
+    detalle_llego: 'Qué llegó',
+    ejemploDetalle_cita: 'Ej.: limpieza dental',
+    ejemploDetalle_entrega: 'Ej.: 2 blusas talla M',
+    ejemploDetalle_cobro: 'Ej.: vestido azul',
+    ejemploDetalle_seguimiento: 'Ej.: el vestido',
+    ejemploDetalle_llego: 'Ej.: zapatos talla 38',
     campoNota: 'Nota (opcional)',
     ejemploNombre: 'Ej.: María Rodríguez',
     ejemploTelefono: 'Ej.: 8888 8888',
-    ejemploServicio: 'Ej.: limpieza dental',
-    ejemploNota: 'Algo que quiera recordar de esta cita',
+    ejemploNota: 'Algo que quiera recordar',
     seEnviaraA: 'Se enviará a {numero}',
-    errorNombre: 'Escriba el nombre del cliente.',
+    errorNombre: 'Escriba el nombre.',
     errorTelefono: 'Escriba un teléfono válido.',
     errorFecha: 'Elija la fecha.',
     errorHora: 'Elija la hora.',
+    errorMonto: 'Escriba el monto.',
+    errorCliente: 'Elija un cliente o cree uno nuevo.',
+    errorTelefonoRepetido: 'Ese teléfono ya es de {nombre}. Elíjalo de la lista.',
     guardar: 'Guardar',
     cancelar: 'Cancelar',
-    citaGuardada: 'Cita guardada.',
-    citaEliminada: 'Cita eliminada.',
-
-    // Confirmaciones
-    confirmarEliminarTitulo: '¿Eliminar esta cita?',
-    confirmarEliminarTexto: 'Se eliminará la cita de {nombre} ({fecha}, {hora}).\nEsto no se puede deshacer.',
+    guardado: 'Guardado.',
+    eliminado: 'Eliminado.',
+    confirmarEliminarTitulo: '¿Eliminar este recordatorio?',
+    confirmarEliminarTexto: '{tipo} de {nombre} ({fecha}).\nEsto no se puede deshacer.',
     siEliminar: 'Sí, eliminar',
 
-    // Recordatorio por WhatsApp
-    // Si la cita no tiene servicio escrito, se usa esta palabra en el mensaje
+    // Datos que se usan en el mensaje si están vacíos
     servicioGenerico: 'atención',
-    // Si no se configuró el nombre del negocio, se usa esto en el mensaje
     negocioGenerico: 'nuestro negocio',
+    pagoGenerico: 'el medio de pago acordado',
     recordatorioMarcado: 'Marcado como enviado.',
-    recordatorioDesmarcado: 'Recordatorio desmarcado.',
+    recordatorioDesmarcado: 'Desmarcado.',
+
+    // Clientes
+    buscarCliente: 'Buscar por nombre, teléfono o etiqueta',
+    etiquetasTodas: 'Todas',
+    tituloClientes: '{cantidad} clientes',
+    tituloClientesUno: '1 cliente',
+    vacioClientes: 'Todavía no hay clientes. Toque «+ Nuevo cliente».',
+    vacioBusqueda: 'No se encontró ningún cliente.',
+    pendientesCliente: '{cantidad} próximos',
+    nuevoRecordatorioCliente: '+ Recordatorio',
+    abrirChat: 'Abrir chat',
+    historial: 'Historial',
+    historialVacio: 'Este cliente todavía no tiene recordatorios.',
+    confirmarEliminarClienteTitulo: '¿Eliminar a {nombre}?',
+    confirmarEliminarClienteTexto: 'Se eliminará el cliente y sus {cantidad} recordatorios.\nEsto no se puede deshacer.',
+    tituloNuevoCliente: 'Nuevo cliente',
+    tituloEditarCliente: 'Editar cliente',
+    campoEtiquetas: 'Etiquetas',
+    ejemploEtiqueta: 'Ej.: VIP',
+    agregar: 'Agregar',
+    campoNotaCliente: 'Nota del cliente',
+    ejemploNotaCliente: 'Talla, preferencias, alergias…',
+
+    // Grupos (envío en fila)
+    grupoTitulo: 'Mensaje a un grupo',
+    grupoExplicacion: 'WhatsApp no permite enviar a muchas personas a la vez sin pagar. La app le prepara cada mensaje y usted toca «enviar» en cada uno.',
+    grupoPaso1: '1. ¿A quiénes?',
+    grupoPaso2: '2. Mensaje',
+    grupoPaso3: '3. Enviar uno por uno',
+    grupoTodos: 'Todos los clientes',
+    vistaPreviaPrimero: 'Vista previa (con el primer cliente)',
+    grupoMensajeInicial: 'Hola {nombre}, ',
+    grupoElegir: 'Elija a quiénes enviar.',
+    grupoProgreso: 'Enviados: {enviados} de {total}',
+    grupoEnviarA: 'Enviar a {nombre} ({numero} de {total})',
+    grupoListo: '¡Listo! Se envió a los {total}.',
+    grupoReiniciar: 'Empezar de nuevo',
+    grupoVacio: 'No hay clientes en este grupo.',
+    grupoEnviado: '✓ Enviado',
+    grupoEnviar: 'Enviar',
+    grupoErrorMensaje: 'Escriba el mensaje.',
 
     // Ajustes
     volver: '← Volver',
     ajustesTitulo: 'Ajustes',
     ajustesNegocio: 'Su negocio',
     campoNegocio: 'Nombre del negocio',
+    campoAtiende: 'Quién atiende',
+    ejemploNegocio: 'Ej.: Tienda Bella',
+    ejemploAtiende: 'Ej.: Laura',
+    ayudaAtiende: 'Se usa en los mensajes con {atiende}.',
     campoDireccion: 'Dirección',
-    ejemploNegocio: 'Ej.: Clínica Dental Sonrisa',
     ejemploDireccion: 'Ej.: San José, 200 m norte del parque',
     campoCodigoPais: 'Código de país',
-    ayudaCodigoPais: 'Se agrega a los teléfonos que no lo tengan. Costa Rica = 506.',
-    errorCodigoPais: 'Escriba solo números, de 1 a 4 dígitos.',
-    ajustesMensaje: 'Mensaje de recordatorio',
-    campoPlantilla: 'Plantilla del mensaje',
-    ayudaVariables: 'Toque una palabra para agregarla. Se reemplaza por el dato real de cada cita:',
+    campoMoneda: 'Moneda',
+    ayudaCodigoPais: 'El código de país se agrega a los teléfonos que no lo tengan (Costa Rica = 506).',
+    errorCodigoPais: 'Solo números, de 1 a 4.',
+    campoPagoHabitual: 'Forma de pago habitual',
+    ejemploPago: 'Ej.: SINPE Móvil al 8888-8888',
+    ajustesWhatsapp: 'WhatsApp',
+    campoWhatsappComputadora: 'En computadora, abrir',
+    opcionWhatsappWeb: 'WhatsApp Web (siempre en la misma pestaña)',
+    opcionWhatsappApp: 'App de WhatsApp de escritorio',
+    campoEnlacesRespuesta: 'Agregar enlaces para que el cliente responda con un toque',
+    ayudaEnlacesRespuesta: 'Al final del mensaje aparecen enlaces como «✅ Confirmar». Al tocarlos, al cliente se le abre WhatsApp con la respuesta ya escrita hacia su número; solo toca enviar.',
+    campoTelefonoNegocio: 'Su número de WhatsApp (para recibir respuestas)',
+    errorTelefonoNegocio: 'Escriba su número para poder usar los enlaces de respuesta.',
+    ajustesFirma: 'Firma',
+    campoFirmaActiva: 'Agregar la firma al final de los mensajes',
+    campoFirma: 'Texto de la firma',
+    ejemploFirma: 'Ej.: — {atiende}, {negocio}',
+    ayudaFirma: 'Puede usar {atiende} y {negocio}.',
+    ajustesMensaje: 'Mensajes',
+    ayudaPlantillas: 'Cada tipo de recordatorio tiene su propio mensaje. Elija el tipo:',
+    constructorTitulo: 'Armar con clics (reemplaza el texto de abajo)',
+    constructorSaludo: 'Saludo',
+    constructorCierre: 'Despedida',
+    sinCierre: '(sin despedida)',
+    tratoTu: 'Tú',
+    tratoUsted: 'Usted',
+    constructorConfirmar: 'Pedir que responda SÍ para confirmar',
+    constructorDireccion: 'Incluir la dirección',
+    campoPlantilla: 'Mensaje',
+    plantillaEditadaAMano: '✎ Editado a mano',
+    ayudaVariables: 'Toque una palabra para agregarla. Se reemplaza por el dato real:',
     restaurarPlantilla: 'Volver al mensaje original',
     vistaPrevia: 'Vista previa (con datos de ejemplo)',
     errorPlantilla: 'El mensaje no puede quedar vacío.',
     guardarAjustes: 'Guardar ajustes',
     ajustesGuardados: 'Ajustes guardados.',
     ejemploNombreCliente: 'María',
-    ejemploServicioCita: 'limpieza dental',
+    ejemploServicio: 'limpieza dental',
+    ejemploDetalle: 'vestido azul',
+    ajustesDispositivo: 'Este dispositivo',
+    campoNombreDispositivo: 'Nombre de este dispositivo',
+    ejemploNombreDispositivo: 'Ej.: Celular de Ana',
+    ayudaNombreDispositivo: 'Sirve para saber desde dónde se hizo cada cambio al sincronizar.',
+    dispositivoGuardado: 'Nombre guardado.',
 
     // Copia de seguridad
     copiaTitulo: 'Copia de seguridad',
-    copiaExplicacion: 'Sus citas existen solo en este teléfono. Si se pierde o se borra el navegador, se pierden. Descargue una copia de vez en cuando y guárdela en un lugar seguro (correo, nube, computadora).',
+    copiaExplicacion: 'Sus datos existen solo en este dispositivo (y en su Google Drive si activa la sincronización). Descargue una copia de vez en cuando y guárdela en un lugar seguro.',
     copiaNunca: 'Todavía no ha descargado ninguna copia.',
     copiaUltima: 'Última copia descargada: {momento}',
     descargarCopia: 'Descargar copia',
     restaurarCopia: 'Restaurar copia',
     copiaDescargada: 'Copia descargada.',
-    avisoCopia: 'Hace más de 7 días que no descarga una copia de seguridad. Le tomará un segundo y protege sus citas.',
+    avisoCopia: 'Hace más de 7 días que no descarga una copia de seguridad. Le tomará un segundo y protege sus datos.',
     ahoraNo: 'Ahora no',
     errorArchivo: 'Ese archivo no es una copia válida de Tucankit Citas. No se cambió nada.',
-    confirmarRestaurarTitulo: '¿Reemplazar sus datos con esta copia?',
-    confirmarRestaurarTexto: 'La copia es del {momento} y tiene {cantidad} citas.\n\nATENCIÓN: esto BORRA las {actuales} citas y los ajustes que tiene ahora en este teléfono y los reemplaza por los de la copia. No se puede deshacer.',
-    siRestaurar: 'Sí, reemplazar',
-    copiaRestaurada: 'Copia restaurada.',
+    confirmarRestaurarTitulo: '¿Cómo quiere usar esta copia?',
+    confirmarRestaurarTexto: 'La copia es del {momento} y tiene {clientes} clientes y {recordatorios} recordatorios.\n\n«Mezclar» suma la copia a sus datos sin perder lo más nuevo (recomendado).\n«Reemplazar todo» deja todo como en la copia y BORRA lo que no esté en ella (también en sus otros dispositivos si sincroniza).\n\nEn ambos casos, antes se guarda una copia automática.',
+    mezclarCopia: 'Mezclar (recomendado)',
+    reemplazarTodo: 'Reemplazar todo',
+    copiaRestaurada: 'Copia aplicada. {resumen}',
+    resumenCambios: 'Se agregaron {agregados}, se actualizaron {actualizados}, se borraron {borrados}.',
+
+    // Copias automáticas
+    copiasAutoTitulo: 'Copias automáticas',
+    copiasAutoExplicacion: 'Antes de cada sincronización, restauración o borrado, la app guarda sola una copia de sus datos. Se conservan las últimas 5.',
+    copiasAutoVacio: 'Todavía no hay copias automáticas.',
+    copiaAutoFila: '{momento} · {motivo} · {cantidad} recordatorios',
+    volverACopia: 'Volver a esta',
+    volverAnteriorSync: 'Volver a la copia anterior a la última sincronización',
+    motivo_migracion: 'antes de actualizar la app',
+    motivo_sincronizacion: 'antes de sincronizar',
+    motivo_restaurar: 'antes de restaurar una copia',
+    motivo_borrar: 'antes de borrar todo',
+    motivo_volver: 'antes de volver a una copia',
+    motivo_qr: 'antes de recibir por QR',
+    confirmarVolverTitulo: '¿Volver a esta copia?',
+    confirmarVolverTexto: 'Sus datos quedarán como estaban el {momento}.\n\nIMPORTANTE: si usa sincronización, esto también se aplicará en sus otros dispositivos: lo que se hizo después de esa copia se deshará en todos.\n\nAntes de cambiar, se guarda una copia de lo actual.',
+    siVolver: 'Sí, volver',
+    copiaVuelta: 'Listo, se volvió a la copia. {resumen}',
 
     // Borrar todo
     peligroTitulo: 'Borrar todos los datos',
-    peligroExplicacion: 'Elimina todas las citas y ajustes de este teléfono. Descargue una copia antes si quiere conservarlos.',
+    peligroExplicacion: 'Elimina todos los clientes, recordatorios y ajustes. Descargue una copia antes si quiere conservarlos.',
     borrarTodo: 'Borrar todo',
     confirmarBorrarTitulo: '¿Borrar todos los datos?',
-    confirmarBorrarTexto: 'Se eliminarán las {cantidad} citas y todos los ajustes de este teléfono.\n\nSi no tiene una copia descargada, no hay forma de recuperarlos.',
+    confirmarBorrarTexto: 'Se eliminarán {clientes} clientes y {recordatorios} recordatorios.\n\nSi sincroniza, también se borrarán en sus otros dispositivos. Antes se guarda una copia automática.',
     siBorrar: 'Sí, borrar todo',
     todoBorrado: 'Se borraron todos los datos.',
 
@@ -162,9 +296,10 @@ const TEXTOS = {
     avisoNegocio: 'Escriba el nombre de su negocio en Ajustes para que aparezca en los mensajes.',
     irAjustes: 'Ir a Ajustes',
     avisoIphone: 'Para instalar la app en su iPhone: toque el botón Compartir (el cuadrado con la flecha) y luego «Agregar a inicio».',
+    avisoMigracion: 'La app se actualizó: sus {citas} citas ahora son recordatorios de tipo «Cita» y se crearon {clientes} clientes. Por si acaso, se guardó una copia automática (Ajustes → Copias automáticas).',
     entendido: 'Entendido',
     appInstalada: 'App instalada.',
-    errorBD: 'No se pudo abrir el almacenamiento del teléfono. Si está en modo incógnito o privado, abra la app en una ventana normal.',
+    errorBD: 'No se pudo abrir el almacenamiento del dispositivo. Si está en modo incógnito o privado, abra la app en una ventana normal.',
     errorGuardar: 'No se pudo guardar. Intente de nuevo.'
   }
 };
@@ -176,114 +311,329 @@ const TEXTOS = {
 /** Busca un elemento de la página por su id. */
 const $ = (id) => document.getElementById(id);
 
-/**
- * Devuelve un texto de la interfaz en el idioma actual.
- * Si se le pasan datos, reemplaza las palabras entre { }.
- * Ejemplo: t('seEnviaraA', { numero: '+506 8888 8888' })
- */
+/** Devuelve un texto de la interfaz, reemplazando las palabras entre { }. */
 function t(clave, datos = {}) {
   const textos = TEXTOS[IDIOMA] || TEXTOS.es;
   const texto = textos[clave] ?? TEXTOS.es[clave] ?? clave;
-  if (typeof texto !== 'string') return texto; // listas como "dias" o "meses"
-  return texto.replace(/\{(\w+)\}/g, (completo, nombre) => (nombre in datos ? datos[nombre] : completo));
+  return String(texto).replace(/\{(\w+)\}/g, (completo, nombre) => (nombre in datos ? datos[nombre] : completo));
 }
 
-/** Pone los textos de TEXTOS en los elementos de la página que tienen data-t. */
+/** Pone los textos de TEXTOS en los elementos que tienen data-t. */
 function aplicarTextos() {
   document.documentElement.lang = IDIOMA;
   document.querySelectorAll('[data-t]').forEach((el) => { el.textContent = t(el.dataset.t); });
   document.querySelectorAll('[data-t-placeholder]').forEach((el) => { el.placeholder = t(el.dataset.tPlaceholder); });
 }
 
-/** Crea un código único para cada cita. */
-function nuevoId() {
-  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+/** Crea un elemento con clase y texto (atajo para armar listas). */
+function crear(etiqueta, clase = '', texto = '') {
+  const el = document.createElement(etiqueta);
+  if (clase) el.className = clase;
+  if (texto) el.textContent = texto;
+  return el;
 }
 
-/** Muestra un mensaje corto abajo de la pantalla por unos segundos. */
+/** Crea un código único. */
+function nuevoId() {
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
+}
+
+/** Texto sin tildes y en minúsculas, para buscar. */
+const paraBuscar = (texto) => String(texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+/** Muestra un mensaje corto abajo de la pantalla. */
 let temporizadorToast = null;
-function avisar(texto) {
+function avisar(texto, segundos = 2.6) {
   const toast = $('toast');
   toast.textContent = texto;
   toast.hidden = false;
   clearTimeout(temporizadorToast);
-  temporizadorToast = setTimeout(() => { toast.hidden = true; }, 2600);
+  temporizadorToast = setTimeout(() => { toast.hidden = true; }, segundos * 1000);
 }
 
-/** Muestra un error grande arriba (por ejemplo, si no se puede guardar). */
+/** Muestra un error grande arriba. */
 function mostrarError(texto) {
   const aviso = $('aviso-error');
   aviso.textContent = texto;
   aviso.hidden = false;
 }
 
+/** Texto del resumen de una mezcla: "Se agregaron X, se actualizaron Y, se borraron Z." */
+const textoResumen = (r) => t('resumenCambios', r);
+
 /**
- * Ventana de confirmación. Devuelve una promesa que vale true si la
- * persona tocó el botón de confirmar y false si canceló.
+ * Ventana de confirmación. Devuelve una promesa:
+ *   true = botón principal, 'alt' = botón alternativo, false = cancelar.
  */
-function confirmar({ titulo, texto, botonSi, peligroso = true, soloAviso = false }) {
+function confirmar({ titulo, texto, botonSi, botonAlt = '', peligroso = true, soloAviso = false }) {
   return new Promise((resolver) => {
     const dialogo = $('dialogo-confirmar');
     const si = $('confirmar-si');
+    const alt = $('confirmar-alt');
     const no = $('confirmar-no');
     $('confirmar-titulo').textContent = titulo;
     $('confirmar-texto').textContent = texto;
     si.textContent = botonSi;
     no.textContent = t('cancelar');
     si.classList.toggle('no-peligroso', !peligroso);
-    no.hidden = soloAviso; // un aviso informativo solo tiene un botón
+    no.hidden = soloAviso;
+    alt.hidden = !botonAlt;
+    alt.textContent = botonAlt;
 
     const terminar = (respuesta) => {
-      si.onclick = null;
-      no.onclick = null;
-      dialogo.oncancel = null;
+      si.onclick = null; alt.onclick = null; no.onclick = null; dialogo.oncancel = null;
       if (dialogo.open) dialogo.close();
       resolver(respuesta);
     };
     si.onclick = () => terminar(true);
+    alt.onclick = () => terminar('alt');
     no.onclick = () => terminar(false);
     dialogo.oncancel = (evento) => { evento.preventDefault(); terminar(false); };
     dialogo.showModal();
-    (soloAviso ? si : no).focus(); // el foco queda en "Cancelar" para evitar confirmar sin querer
+    (soloAviso ? si : no).focus(); // el foco en "Cancelar" evita confirmar sin querer
   });
 }
 
+/** Muestra (o quita) el mensaje de error de un campo. El contenedor tiene id "campo-<nombre>". */
+function marcarError(campo, mensaje) {
+  const contenedor = $('campo-' + campo);
+  const error = contenedor.querySelector('.error');
+  contenedor.classList.toggle('invalido', Boolean(mensaje));
+  error.textContent = mensaje;
+  error.hidden = !mensaje;
+}
+
 /* =========================================================
-   3. BASE DE DATOS (IndexedDB, dentro del teléfono)
-   Hay dos "cajones":
-     - "citas": una ficha por cita, identificada por su id.
-     - "ajustes": una sola ficha con clave "principal".
+   3. BASE DE DATOS (IndexedDB, dentro del dispositivo)
+   Cajones (versión 2 de la base):
+     - clientes, recordatorios, etiquetas: un registro por cosa.
+       Cada uno tiene actualizadoEn, dispositivoId y borradoEn
+       (borrar marca, no elimina, para que la sincronización se entere).
+     - ajustes: dos fichas:
+         "compartidos": se sincronizan (negocio, plantillas, firma...)
+         "locales": propios de este dispositivo (su id y nombre, etc.)
+     - copiasAuto: copias automáticas (las últimas 5).
+   La versión 1 tenía un cajón "citas"; al abrir esta versión
+   se reorganiza solo (ver migrarDesdeV1).
    ========================================================= */
 const BD_NOMBRE = 'tucankit-citas';
-const BD_VERSION = 1;
+const BD_VERSION = 2;
+const MAX_COPIAS_AUTO = 5;
 let bd = null;
 
-/** Ajustes que tiene la app la primera vez que se abre. */
-function ajustesPorDefecto() {
+/** Plantilla de citas por defecto de la versión 1 (para reconocerla al migrar). */
+const PLANTILLA_V1 = 'Hola {nombre}, le recordamos su cita de {servicio} el {fecha} a las {hora} en {negocio}. Por favor responda SÍ para confirmar. ¡Gracias!';
+
+/** Ajustes que se sincronizan entre dispositivos (campo por campo). */
+const CLAVES_COMPARTIDAS = [
+  'negocio', 'atiende', 'direccion', 'codigoPais', 'moneda', 'pagoHabitual',
+  'telefonoNegocio', 'enlacesRespuesta', 'firmaActiva', 'firma',
+  ...TIPOS.map((tipo) => 'plantilla_' + tipo),
+  ...TIPOS.map((tipo) => 'opciones_' + tipo)
+];
+
+/** Ajustes compartidos con sus valores iniciales. */
+function compartidosPorDefecto() {
+  const a = {
+    negocio: '', atiende: '', direccion: '', codigoPais: '506', moneda: '₡',
+    pagoHabitual: '', telefonoNegocio: '', enlacesRespuesta: false, firmaActiva: false, firma: '',
+    _sello: {}
+  };
+  TIPOS.forEach((tipo) => {
+    a['opciones_' + tipo] = opcionesPorDefecto(tipo);
+    a['plantilla_' + tipo] = plantillaPorDefecto(tipo);
+  });
+  return a;
+}
+
+/** Ajustes propios de este dispositivo con sus valores iniciales. */
+function localesPorDefecto() {
   return {
-    negocio: '',
-    direccion: '',
-    codigoPais: '506',
-    plantilla: plantillaPorDefecto(),
-    ultimaCopia: null,        // cuándo se descargó la última copia de seguridad
-    primerUso: null,          // cuándo se abrió la app por primera vez
-    ayudaIphoneOculta: false  // si ya cerró la ayuda de instalación en iPhone
+    dispositivoId: nuevoId(),
+    nombreDispositivo: '',
+    whatsappComputadora: 'web',
+    ayudaIphoneOculta: false,
+    ultimaCopia: null,
+    primerUso: Date.now(),
+    envioGrupo: { grupo: '', mensaje: t('grupoMensajeInicial'), enviados: [] }
   };
 }
 
-/** Abre (o crea la primera vez) la base de datos. */
+/** Limpia las opciones del constructor (por si vienen de un archivo). */
+function limpiarOpciones(o, tipo) {
+  const base = opcionesPorDefecto(tipo);
+  if (!o || typeof o !== 'object') return base;
+  return {
+    saludo: Number.isInteger(o.saludo) ? o.saludo : base.saludo,
+    trato: o.trato === 'usted' ? 'usted' : 'tu',
+    confirmar: typeof o.confirmar === 'boolean' ? o.confirmar : base.confirmar,
+    direccion: typeof o.direccion === 'boolean' ? o.direccion : base.direccion,
+    cierre: Number.isInteger(o.cierre) ? o.cierre : base.cierre
+  };
+}
+
+/** Revisa y completa los ajustes compartidos (de la base o de un archivo). */
+function normalizarCompartidos(a = {}) {
+  const r = compartidosPorDefecto();
+  ['negocio', 'atiende', 'direccion', 'pagoHabitual', 'firma'].forEach((k) => {
+    if (typeof a[k] === 'string') r[k] = a[k];
+  });
+  if (/^\d{1,4}$/.test(String(a.codigoPais || ''))) r.codigoPais = String(a.codigoPais);
+  if (typeof a.moneda === 'string' && a.moneda.trim()) r.moneda = a.moneda.trim().slice(0, 4);
+  if (typeof a.telefonoNegocio === 'string' && telefonoValido(a.telefonoNegocio)) r.telefonoNegocio = a.telefonoNegocio;
+  r.enlacesRespuesta = a.enlacesRespuesta === true;
+  r.firmaActiva = a.firmaActiva === true;
+  TIPOS.forEach((tipo) => {
+    r['opciones_' + tipo] = limpiarOpciones(a['opciones_' + tipo], tipo);
+    const p = a['plantilla_' + tipo];
+    r['plantilla_' + tipo] = typeof p === 'string' && p.trim() ? p : construirPlantilla(tipo, r['opciones_' + tipo]);
+  });
+  // Sellos: cuándo se cambió cada campo (para mezclar campo por campo)
+  if (a._sello && typeof a._sello === 'object') {
+    CLAVES_COMPARTIDAS.forEach((k) => {
+      const s = a._sello[k];
+      if (s && typeof s.actualizadoEn === 'number') r._sello[k] = { actualizadoEn: s.actualizadoEn, dispositivoId: String(s.dispositivoId || '') };
+    });
+  }
+  return r;
+}
+
+/** Revisa y completa los ajustes locales. */
+function normalizarLocales(a = {}) {
+  const r = localesPorDefecto();
+  if (typeof a.dispositivoId === 'string' && a.dispositivoId) r.dispositivoId = a.dispositivoId;
+  if (typeof a.nombreDispositivo === 'string') r.nombreDispositivo = a.nombreDispositivo;
+  if (a.whatsappComputadora === 'app') r.whatsappComputadora = 'app';
+  r.ayudaIphoneOculta = a.ayudaIphoneOculta === true;
+  if (typeof a.ultimaCopia === 'number') r.ultimaCopia = a.ultimaCopia;
+  if (typeof a.primerUso === 'number') r.primerUso = a.primerUso;
+  const g = a.envioGrupo;
+  if (g && typeof g === 'object') {
+    r.envioGrupo = {
+      grupo: typeof g.grupo === 'string' ? g.grupo : '',
+      mensaje: typeof g.mensaje === 'string' ? g.mensaje : r.envioGrupo.mensaje,
+      enviados: Array.isArray(g.enviados) ? g.enviados.filter((x) => typeof x === 'string') : []
+    };
+  }
+  return r;
+}
+
+/**
+ * Reorganiza los datos de la versión 1 (una lista de "citas" con nombre y
+ * teléfono adentro) en clientes + recordatorios. No pierde nada:
+ *  - crea un cliente por cada teléfono distinto (con el primer nombre usado),
+ *  - si otra cita con el mismo teléfono tenía otro nombre, lo anota en la nota,
+ *  - cada cita pasa a ser un recordatorio de tipo "cita".
+ * Se usa al actualizar la app y al restaurar copias de la versión 1.
+ */
+function migrarDesdeV1(citas, ajustesV1, dispositivoId, ahora = Date.now()) {
+  const clientesPorTelefono = new Map();
+  const recordatorios = [];
+  const ordenadas = [...citas].sort((a, b) => (a.creada || 0) - (b.creada || 0));
+
+  for (const c of ordenadas) {
+    let cliente = clientesPorTelefono.get(c.telefono);
+    if (!cliente) {
+      cliente = {
+        id: nuevoId(), nombre: c.nombre, telefono: c.telefono, nota: '', etiquetaIds: [],
+        creadoEn: c.creada || ahora, actualizadoEn: ahora, dispositivoId, borradoEn: null
+      };
+      clientesPorTelefono.set(c.telefono, cliente);
+    }
+    const otroNombre = c.nombre && c.nombre !== cliente.nombre ? `Nombre en la cita: ${c.nombre}` : '';
+    recordatorios.push({
+      id: c.id || nuevoId(),
+      tipo: 'cita',
+      clienteId: cliente.id,
+      fecha: c.fecha,
+      hora: c.hora,
+      detalle: c.servicio || '',
+      monto: null,
+      pago: '',
+      nota: [otroNombre, c.nota || ''].filter(Boolean).join('\n'),
+      enviado: c.recordatorioEnviado === true,
+      enviadoEn: c.recordatorioEnviado === true ? (c.recordatorioFecha || ahora) : null,
+      respuesta: '',
+      respuestaEn: null,
+      creadoEn: c.creada || ahora,
+      actualizadoEn: ahora,
+      dispositivoId,
+      borradoEn: null
+    });
+  }
+
+  // Ajustes: si usaba el mensaje original (con "usted"), se mantiene "usted" en todos los tipos
+  const a = ajustesV1 || {};
+  const compartidos = compartidosPorDefecto();
+  ['negocio', 'direccion'].forEach((k) => { if (typeof a[k] === 'string') compartidos[k] = a[k]; });
+  if (/^\d{1,4}$/.test(String(a.codigoPais || ''))) compartidos.codigoPais = String(a.codigoPais);
+  const vieja = typeof a.plantilla === 'string' ? a.plantilla.trim() : '';
+  const usabaOriginal = !vieja || vieja === PLANTILLA_V1;
+  if (vieja && usabaOriginal) {
+    TIPOS.forEach((tipo) => {
+      compartidos['opciones_' + tipo] = { ...opcionesPorDefecto(tipo), trato: 'usted' };
+      compartidos['plantilla_' + tipo] = construirPlantilla(tipo, compartidos['opciones_' + tipo]);
+    });
+  } else if (vieja) {
+    compartidos.plantilla_cita = vieja; // la había personalizado: se respeta tal cual
+  }
+  CLAVES_COMPARTIDAS.forEach((k) => { compartidos._sello[k] = { actualizadoEn: ahora, dispositivoId }; });
+
+  const locales = {
+    ultimaCopia: typeof a.ultimaCopia === 'number' ? a.ultimaCopia : null,
+    primerUso: typeof a.primerUso === 'number' ? a.primerUso : ahora,
+    ayudaIphoneOculta: a.ayudaIphoneOculta === true
+  };
+  return { clientes: [...clientesPorTelefono.values()], recordatorios, etiquetas: [], compartidos, locales };
+}
+
+/** Abre la base de datos y, si viene de la versión 1, la reorganiza. */
 function abrirBD() {
   return new Promise((resolver, rechazar) => {
     if (!('indexedDB' in window)) { rechazar(new Error('Sin IndexedDB')); return; }
     const pedido = indexedDB.open(BD_NOMBRE, BD_VERSION);
-    pedido.onupgradeneeded = () => {
+    let migracion = null;
+
+    pedido.onupgradeneeded = (evento) => {
       const base = pedido.result;
-      if (!base.objectStoreNames.contains('citas')) base.createObjectStore('citas', { keyPath: 'id' });
+      const tx = pedido.transaction;
+      ['clientes', 'recordatorios', 'etiquetas'].forEach((nombre) => {
+        if (!base.objectStoreNames.contains(nombre)) base.createObjectStore(nombre, { keyPath: 'id' });
+      });
       if (!base.objectStoreNames.contains('ajustes')) base.createObjectStore('ajustes', { keyPath: 'clave' });
+      if (!base.objectStoreNames.contains('copiasAuto')) base.createObjectStore('copiasAuto', { keyPath: 'id' });
+
+      // Venía de la versión 1: reorganizar "citas" en clientes + recordatorios.
+      // Todo ocurre dentro de esta misma operación: si algo falla, se deshace entero.
+      if (evento.oldVersion === 1 && base.objectStoreNames.contains('citas')) {
+        const pedidoCitas = tx.objectStore('citas').getAll();
+        const pedidoAjustes = tx.objectStore('ajustes').get('principal');
+        pedidoAjustes.onsuccess = () => {
+          const ahora = Date.now();
+          const citas = pedidoCitas.result || [];
+          const ajustesV1 = pedidoAjustes.result || {};
+          const locales = { ...localesPorDefecto() };
+          // 1) Copia automática ANTES de cambiar nada (datos exactamente como estaban)
+          tx.objectStore('copiasAuto').put({
+            id: ahora, creadaEn: ahora, motivo: 'migracion', formato: 1,
+            datos: { citas, ajustes: ajustesV1 }, cantidad: citas.length
+          });
+          // 2) Reorganizar
+          const nuevo = migrarDesdeV1(citas, ajustesV1, locales.dispositivoId, ahora);
+          nuevo.clientes.forEach((c) => tx.objectStore('clientes').put(c));
+          nuevo.recordatorios.forEach((r) => tx.objectStore('recordatorios').put(r));
+          tx.objectStore('ajustes').delete('principal');
+          tx.objectStore('ajustes').put({ ...nuevo.compartidos, clave: 'compartidos' });
+          tx.objectStore('ajustes').put({ ...locales, ...nuevo.locales, clave: 'locales' });
+          base.deleteObjectStore('citas');
+          if (citas.length) migracion = { citas: citas.length, clientes: nuevo.clientes.length };
+        };
+      }
     };
-    pedido.onsuccess = () => resolver(pedido.result);
+    pedido.onsuccess = () => resolver({ base: pedido.result, migracion });
     pedido.onerror = () => rechazar(pedido.error);
+    pedido.onblocked = () => rechazar(new Error('Base de datos bloqueada por otra pestaña'));
   });
 }
 
@@ -304,95 +654,189 @@ function esperarTransaccion(transaccion) {
   });
 }
 
-function leerCitasBD() {
-  return esperarPedido(bd.transaction('citas', 'readonly').objectStore('citas').getAll());
-}
+const leerTodoBD = (cajon) => esperarPedido(bd.transaction(cajon, 'readonly').objectStore(cajon).getAll());
+const leerUnoBD = (cajon, clave) => esperarPedido(bd.transaction(cajon, 'readonly').objectStore(cajon).get(clave));
 
-async function guardarCitaBD(cita) {
-  const tx = bd.transaction('citas', 'readwrite');
-  tx.objectStore('citas').put(cita);
+/** Guarda varios registros en uno o más cajones, todo junto o nada. */
+async function guardarVariosBD(cambios) {
+  const cajones = Object.keys(cambios);
+  const tx = bd.transaction(cajones, 'readwrite');
+  cajones.forEach((cajon) => cambios[cajon].forEach((registro) => tx.objectStore(cajon).put(registro)));
   await esperarTransaccion(tx);
 }
 
-async function borrarCitaBD(id) {
-  const tx = bd.transaction('citas', 'readwrite');
-  tx.objectStore('citas').delete(id);
-  await esperarTransaccion(tx);
-}
-
-async function leerAjustesBD() {
-  const guardados = await esperarPedido(
-    bd.transaction('ajustes', 'readonly').objectStore('ajustes').get('principal')
-  );
-  const ajustes = { ...ajustesPorDefecto(), ...(guardados || {}) };
-  delete ajustes.clave;
-  return ajustes;
-}
-
-async function guardarAjustesBD(ajustes) {
-  const tx = bd.transaction('ajustes', 'readwrite');
-  tx.objectStore('ajustes').put({ ...ajustes, clave: 'principal' });
-  await esperarTransaccion(tx);
-}
-
-/** Borra todo y guarda en su lugar las citas y ajustes indicados (en un solo paso). */
-async function reemplazarTodoBD(citas, ajustes) {
-  const tx = bd.transaction(['citas', 'ajustes'], 'readwrite');
-  const cajonCitas = tx.objectStore('citas');
-  const cajonAjustes = tx.objectStore('ajustes');
-  cajonCitas.clear();
-  cajonAjustes.clear();
-  citas.forEach((cita) => cajonCitas.put(cita));
-  cajonAjustes.put({ ...ajustes, clave: 'principal' });
+/** Reemplaza los cajones de datos por los indicados (usado tras una mezcla). */
+async function escribirDatosBD({ clientes, recordatorios, etiquetas, compartidos }) {
+  const tx = bd.transaction(['clientes', 'recordatorios', 'etiquetas', 'ajustes'], 'readwrite');
+  [['clientes', clientes], ['recordatorios', recordatorios], ['etiquetas', etiquetas]].forEach(([cajon, lista]) => {
+    const store = tx.objectStore(cajon);
+    store.clear();
+    lista.forEach((r) => store.put(r));
+  });
+  tx.objectStore('ajustes').put({ ...compartidos, clave: 'compartidos' });
   await esperarTransaccion(tx);
 }
 
 /* =========================================================
-   4. LISTA DE CITAS Y PESTAÑAS
+   4. GUARDAR CAMBIOS
+   Todo cambio pasa por aquí: se "sella" con la hora y el id de este
+   dispositivo, se guarda y se actualiza la memoria.
    ========================================================= */
 
 /** Lo que la app tiene en memoria mientras está abierta. */
 const estado = {
-  citas: [],
-  ajustes: ajustesPorDefecto(),
-  pestana: 'manana',   // pestaña elegida: manana, hoy, proximas o todas
-  editandoId: null     // id de la cita que se está editando (null = cita nueva)
+  clientes: [],          // incluye los borrados (marcados); la pantalla muestra solo activos
+  recordatorios: [],
+  etiquetas: [],
+  compartidos: compartidosPorDefecto(),
+  locales: localesPorDefecto(),
+  vista: 'agenda',
+  vistaAnterior: 'agenda',
+  pestana: 'manana',
+  filtroTipo: 'todos',
+  busqueda: '',
+  filtroEtiqueta: '',
+  clienteAbierto: null,
+  // Formulario de recordatorio
+  editandoRecordatorioId: null,
+  recTipo: 'cita',
+  recClienteId: null,
+  recClienteNuevo: false,
+  // Formulario de cliente
+  editandoClienteId: null,
+  cliEtiquetaIds: [],
+  cliEtiquetasNuevas: [],
+  // Editor de plantillas
+  editorTipo: 'cita',
+  editorPlantillas: {},
+  editorOpciones: {}
 };
 
-/** Ordena por fecha y hora (y por nombre si coinciden). */
-function ordenarCitas(citas) {
-  return [...citas].sort((a, b) =>
-    (a.fecha + ' ' + a.hora).localeCompare(b.fecha + ' ' + b.hora) || a.nombre.localeCompare(b.nombre)
-  );
+const idDispositivo = () => estado.locales.dispositivoId;
+
+/* Listas activas (sin los borrados) */
+const clientesActivos = () => estado.clientes.filter(estaActivo);
+const recordatoriosActivos = () => estado.recordatorios.filter(estaActivo);
+const etiquetasActivas = () => estado.etiquetas.filter(estaActivo)
+  .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+const clientePorId = (id) => estado.clientes.find((c) => c.id === id);
+const etiquetaPorId = (id) => estado.etiquetas.find((e) => e.id === id);
+
+/** Reemplaza (o agrega) un registro en una lista de la memoria. */
+function ponerEnMemoria(lista, registro) {
+  const i = estado[lista].findIndex((r) => r.id === registro.id);
+  if (i >= 0) estado[lista][i] = registro;
+  else estado[lista].push(registro);
 }
 
-/** Devuelve las citas que corresponden a una pestaña, ya ordenadas. */
-function citasDePestana(pestana) {
+/**
+ * Guarda registros nuevos o cambiados: los sella, los guarda en la base
+ * y en memoria. "cambios" es { clientes: [...], recordatorios: [...], etiquetas: [...] }.
+ */
+async function guardarCambios(cambios, { borrar = false } = {}) {
+  const ahora = Date.now();
+  const sellados = {};
+  Object.entries(cambios).forEach(([cajon, lista]) => {
+    sellados[cajon] = lista.map((r) => (borrar ? marcarBorrado(r, idDispositivo(), ahora) : sellar(r, idDispositivo(), ahora)));
+  });
+  await guardarVariosBD(sellados);
+  Object.entries(sellados).forEach(([cajon, lista]) => lista.forEach((r) => ponerEnMemoria(cajon, r)));
+  alCambiarDatos();
+}
+
+/** Guarda los ajustes compartidos, sellando solo los campos que cambiaron. */
+async function guardarCompartidos(nuevos) {
+  const ahora = Date.now();
+  const sello = { ...(estado.compartidos._sello || {}) };
+  CLAVES_COMPARTIDAS.forEach((k) => {
+    if (JSON.stringify(nuevos[k]) !== JSON.stringify(estado.compartidos[k])) {
+      sello[k] = { actualizadoEn: ahora, dispositivoId: idDispositivo() };
+    }
+  });
+  const final = { ...nuevos, _sello: sello };
+  await guardarVariosBD({ ajustes: [{ ...final, clave: 'compartidos' }] });
+  estado.compartidos = final;
+  alCambiarDatos();
+}
+
+/** Guarda los ajustes propios de este dispositivo. */
+async function guardarLocales(cambios) {
+  estado.locales = { ...estado.locales, ...cambios };
+  await guardarVariosBD({ ajustes: [{ ...estado.locales, clave: 'locales' }] });
+}
+
+/**
+ * Se llama después de cada cambio en los datos. Por ahora solo redibuja;
+ * la sincronización con Google Drive se engancha aquí.
+ */
+function alCambiarDatos() {
+  revisarAvisos();
+  if (typeof programarSincronizacion === 'function') programarSincronizacion();
+}
+
+/* =========================================================
+   5. AGENDA: LISTA DE RECORDATORIOS Y PESTAÑAS
+   ========================================================= */
+
+/** Ícono de cada tipo de recordatorio. */
+const ICONOS = { cita: '📅', entrega: '📦', cobro: '💰', seguimiento: '💬', llego: '🛍️' };
+
+/** Respuestas que se pueden marcar en cada tipo. */
+const RESPUESTAS_POR_TIPO = {
+  cita: ['confirmo', 'cancelo'],
+  entrega: ['confirmo'],
+  cobro: ['pago'],
+  seguimiento: ['respondio'],
+  llego: ['confirmo']
+};
+
+/** Ordena por fecha y hora (los "sin hora" van primero en su día). */
+function ordenarRecordatorios(lista) {
+  return [...lista].sort((a, b) =>
+    (a.fecha + ' ' + (a.hora || '')).localeCompare(b.fecha + ' ' + (b.hora || '')) || a.creadoEn - b.creadoEn);
+}
+
+/** Recordatorios de una pestaña (y del tipo elegido en el filtro). */
+function recordatoriosDePestana(pestana) {
   const hoy = hoyTexto();
-  const manana = sumarDias(hoy, 1);
+  const manana = mananaTexto();
   const filtros = {
-    manana: (c) => c.fecha === manana,
-    hoy: (c) => c.fecha === hoy,
-    proximas: (c) => c.fecha >= hoy, // el texto AAAA-MM-DD se puede comparar directamente
+    manana: (r) => r.fecha === manana,
+    hoy: (r) => r.fecha === hoy,
+    proximas: (r) => r.fecha >= hoy, // el texto AAAA-MM-DD se compara directo
     todas: () => true
   };
-  return ordenarCitas(estado.citas.filter(filtros[pestana]));
+  return ordenarRecordatorios(recordatoriosActivos()
+    .filter(filtros[pestana])
+    .filter((r) => estado.filtroTipo === 'todos' || r.tipo === estado.filtroTipo));
 }
 
-/** Dibuja de nuevo la lista según la pestaña elegida. */
-function mostrarCitas() {
-  const hoy = hoyTexto();
-  const manana = sumarDias(hoy, 1);
+/** Botones de filtro por tipo (Todos, Cita, Entrega...). */
+function dibujarFiltroTipos() {
+  const contenedor = $('filtro-tipos');
+  contenedor.replaceChildren();
+  ['todos', ...TIPOS].forEach((tipo) => {
+    const b = crear('button', 'ficha', tipo === 'todos' ? t('filtroTodos') : `${ICONOS[tipo]} ${t('tipo_' + tipo)}`);
+    b.type = 'button';
+    b.setAttribute('aria-pressed', String(estado.filtroTipo === tipo));
+    b.addEventListener('click', () => { estado.filtroTipo = tipo; dibujarAgenda(); });
+    contenedor.append(b);
+  });
+}
 
-  // Pestañas: marcar la elegida y poner la cantidad de citas de cada una
+/** Dibuja la agenda según la pestaña y el filtro elegidos. */
+function dibujarAgenda() {
+  const hoy = hoyTexto();
+  const manana = mananaTexto();
+  dibujarFiltroTipos();
+
   document.querySelectorAll('.pestana').forEach((boton) => {
     const nombre = boton.dataset.pestana;
     boton.setAttribute('aria-selected', String(nombre === estado.pestana));
-    const cantidad = citasDePestana(nombre).length;
+    const cantidad = recordatoriosDePestana(nombre).length;
     boton.querySelector('.contador').textContent = cantidad ? String(cantidad) : '';
   });
 
-  // Título de la lista
   const titulos = {
     manana: t('tituloManana', { fecha: fechaAmigable(manana) }),
     hoy: t('tituloHoy', { fecha: fechaAmigable(hoy) }),
@@ -401,101 +845,121 @@ function mostrarCitas() {
   };
   $('titulo-lista').textContent = titulos[estado.pestana];
 
-  // Contenido
-  const lista = $('lista-citas');
+  const lista = $('lista-recordatorios');
   lista.replaceChildren();
-  const citas = citasDePestana(estado.pestana);
-
-  if (!citas.length) {
-    const vacio = document.createElement('p');
-    vacio.className = 'vacio';
-    const mensajes = { manana: 'vacioManana', hoy: 'vacioHoy', proximas: 'vacioProximas', todas: 'vacioTodas' };
-    vacio.textContent = t(mensajes[estado.pestana]);
-    lista.append(vacio);
+  const recordatorios = recordatoriosDePestana(estado.pestana);
+  if (!recordatorios.length) {
+    const vacios = { manana: 'vacioManana', hoy: 'vacioHoy', proximas: 'vacioProximas', todas: 'vacioTodas' };
+    lista.append(crear('p', 'vacio', t(vacios[estado.pestana])));
     return;
   }
 
-  // En "Próximas" y "Todas" se agrupan las citas por día
+  // En "Próximas" y "Todas" se agrupan por día
   const agrupar = estado.pestana === 'proximas' || estado.pestana === 'todas';
   let diaAnterior = null;
-  citas.forEach((cita) => {
-    if (agrupar && cita.fecha !== diaAnterior) {
-      const titulo = document.createElement('h3');
-      titulo.className = 'grupo-fecha';
-      if (cita.fecha === hoy) titulo.textContent = t('grupoHoy', { fecha: fechaAmigable(cita.fecha) });
-      else if (cita.fecha === manana) titulo.textContent = t('grupoManana', { fecha: fechaAmigable(cita.fecha) });
-      else titulo.textContent = fechaAmigable(cita.fecha);
-      lista.append(titulo);
-      diaAnterior = cita.fecha;
+  recordatorios.forEach((r) => {
+    if (agrupar && r.fecha !== diaAnterior) {
+      let titulo = fechaAmigable(r.fecha);
+      if (r.fecha === hoy) titulo = t('grupoHoy', { fecha: titulo });
+      else if (r.fecha === manana) titulo = t('grupoManana', { fecha: titulo });
+      lista.append(crear('h3', 'grupo-fecha', titulo));
+      diaAnterior = r.fecha;
     }
-    lista.append(crearTarjeta(cita, { mostrarFecha: false, pasada: cita.fecha < hoy }));
+    lista.append(crearTarjeta(r, { mostrarFecha: false }));
   });
 }
 
-/** Arma la tarjeta de una cita a partir del molde que está en index.html. */
-function crearTarjeta(cita, { mostrarFecha, pasada }) {
-  const tarjeta = $('plantilla-cita').content.firstElementChild.cloneNode(true);
+/** Línea de detalle de la tarjeta según el tipo. */
+function textoDetalle(r) {
+  if (r.tipo === 'cobro') {
+    return [formatearMonto(r.monto, estado.compartidos.moneda), r.pago, r.detalle].filter(Boolean).join(' · ');
+  }
+  return r.detalle;
+}
+
+/** Arma la tarjeta de un recordatorio a partir del molde de index.html. */
+function crearTarjeta(r, { mostrarFecha }) {
+  const tarjeta = $('plantilla-recordatorio').content.firstElementChild.cloneNode(true);
   const parte = (clase) => tarjeta.querySelector('.' + clase);
-  tarjeta.dataset.id = cita.id;
-  tarjeta.classList.toggle('pasada', pasada);
+  const cliente = clientePorId(r.clienteId);
+  tarjeta.dataset.id = r.id;
+  tarjeta.dataset.tipo = r.tipo;
+  tarjeta.classList.toggle('pasada', r.fecha < hoyTexto());
+  tarjeta.classList.toggle('cancelada', r.respuesta === 'cancelo');
 
-  parte('cita-hora').textContent = horaAmigable(cita.hora);
-  parte('cita-fecha').textContent = mostrarFecha ? fechaAmigable(cita.fecha) : '';
-  parte('cita-nombre').textContent = cita.nombre;
-  parte('cita-servicio').textContent = cita.servicio;
-  parte('cita-servicio').hidden = !cita.servicio;
-  parte('cita-telefono').textContent = formatearTelefono(cita.telefono, estado.ajustes.codigoPais);
-  parte('cita-nota').textContent = cita.nota;
-  parte('cita-nota').hidden = !cita.nota;
-
+  parte('tipo-insignia').textContent = `${ICONOS[r.tipo]} ${t('tipo_' + r.tipo)}`;
+  parte('cita-hora').textContent = r.hora ? horaAmigable(r.hora) : t('sinHora');
+  parte('cita-hora').classList.toggle('sin-hora', !r.hora);
+  parte('cita-fecha').textContent = mostrarFecha ? fechaAmigable(r.fecha) : '';
+  parte('cita-nombre').textContent = cliente ? cliente.nombre : '—';
+  parte('cita-detalle').textContent = textoDetalle(r);
+  parte('cita-detalle').hidden = !textoDetalle(r);
+  parte('cita-telefono').textContent = cliente ? formatearTelefono(cliente.telefono, estado.compartidos.codigoPais) : '';
+  parte('cita-nota').textContent = r.nota;
+  parte('cita-nota').hidden = !r.nota;
   parte('accion-enviar').textContent = t('enviarRecordatorio');
   parte('accion-editar').textContent = t('editar');
   parte('accion-eliminar').textContent = t('eliminar');
   parte('accion-desmarcar').textContent = t('desmarcar');
 
-  // Si ya se envió el recordatorio, la tarjeta se ve distinta (borde verde y ✓)
-  if (cita.recordatorioEnviado) {
+  if (r.enviado) {
     tarjeta.classList.add('enviada');
     parte('cita-enviado').hidden = false;
-    parte('cita-enviado-texto').textContent = t('recordatorioEnviado', {
-      momento: momentoAmigable(cita.recordatorioFecha)
-    });
+    parte('cita-enviado-texto').textContent = t('recordatorioEnviado', { momento: momentoAmigable(r.enviadoEn) });
     const enviar = parte('accion-enviar');
     enviar.textContent = t('reenviarRecordatorio');
     enviar.classList.replace('boton-accion', 'boton-secundario');
   }
 
+  // Respuesta del cliente (se marca a mano)
+  if (r.respuesta) {
+    const insignia = parte('respuesta-insignia');
+    insignia.hidden = false;
+    insignia.textContent = t('resp_' + r.respuesta);
+    insignia.dataset.respuesta = r.respuesta;
+  }
+  const respuestas = parte('cita-respuestas');
+  parte('cita-respuestas-titulo').textContent = t('respuestaTitulo');
+  (RESPUESTAS_POR_TIPO[r.tipo] || []).forEach((resp) => {
+    const b = crear('button', 'ficha ficha-chica accion-respuesta', t('resp_' + resp));
+    b.type = 'button';
+    b.dataset.respuesta = resp;
+    b.setAttribute('aria-pressed', String(r.respuesta === resp));
+    respuestas.append(b);
+  });
   return tarjeta;
 }
 
-/** Cuando se toca un botón dentro de una tarjeta, se busca qué cita es. */
-function alTocarLista(evento) {
+/** Cuando se toca un botón dentro de una tarjeta, se busca qué recordatorio es. */
+function alTocarTarjeta(evento) {
   const boton = evento.target.closest('button');
   const tarjeta = evento.target.closest('.cita');
   if (!boton || !tarjeta) return;
-  const cita = estado.citas.find((c) => c.id === tarjeta.dataset.id);
-  if (!cita) return;
-
-  if (boton.classList.contains('accion-enviar')) enviarRecordatorio(cita);
-  else if (boton.classList.contains('accion-desmarcar')) marcarRecordatorio(cita, false);
-  else if (boton.classList.contains('accion-editar')) abrirFormulario(cita);
-  else if (boton.classList.contains('accion-eliminar')) eliminarCita(cita);
+  const r = estado.recordatorios.find((x) => x.id === tarjeta.dataset.id);
+  if (!r) return;
+  const clase = (c) => boton.classList.contains(c);
+  if (clase('accion-enviar')) enviarRecordatorio(r);
+  else if (clase('accion-desmarcar')) marcarEnviado(r, false);
+  else if (clase('accion-respuesta')) marcarRespuesta(r, boton.dataset.respuesta);
+  else if (clase('accion-editar')) abrirFormularioRecordatorio(r);
+  else if (clase('accion-eliminar')) eliminarRecordatorio(r);
+  else if (clase('accion-cliente')) abrirFicha(r.clienteId);
 }
 
-async function eliminarCita(cita) {
+async function eliminarRecordatorio(r) {
+  const cliente = clientePorId(r.clienteId);
   const seguro = await confirmar({
     titulo: t('confirmarEliminarTitulo'),
     texto: t('confirmarEliminarTexto', {
-      nombre: cita.nombre, fecha: fechaAmigable(cita.fecha), hora: horaAmigable(cita.hora)
+      tipo: t('tipo_' + r.tipo), nombre: cliente ? cliente.nombre : '—', fecha: fechaAmigable(r.fecha)
     }),
     botonSi: t('siEliminar')
   });
   if (!seguro) return;
   try {
-    await borrarCitaBD(cita.id);
-    estado.citas = estado.citas.filter((c) => c.id !== cita.id);
-    mostrarCitas();
-    avisar(t('citaEliminada'));
+    await guardarCambios({ recordatorios: [r] }, { borrar: true });
+    redibujar();
+    avisar(t('eliminado'));
   } catch (error) {
     console.error(error);
     mostrarError(t('errorGuardar'));
@@ -503,95 +967,185 @@ async function eliminarCita(cita) {
 }
 
 /* =========================================================
-   5. FORMULARIO DE CITA (crear y editar)
+   6. FORMULARIO DE RECORDATORIO
    ========================================================= */
 
-/** Abre la ventana del formulario. Sin cita = nueva; con cita = editar. */
-function abrirFormulario(cita = null) {
-  estado.editandoId = cita ? cita.id : null;
-  $('dialogo-cita-titulo').textContent = t(cita ? 'tituloEditarCita' : 'tituloNuevaCita');
+/** Abre el formulario. Sin recordatorio = nuevo. Con clienteId = cliente ya elegido. */
+function abrirFormularioRecordatorio(r = null, clienteId = null) {
+  estado.editandoRecordatorioId = r ? r.id : null;
+  estado.recTipo = r ? r.tipo : (estado.filtroTipo !== 'todos' ? estado.filtroTipo : 'cita');
+  estado.recClienteId = r ? r.clienteId : clienteId;
+  estado.recClienteNuevo = false;
+  $('rec-titulo').textContent = t(r ? 'tituloEditarRecordatorio' : 'tituloNuevoRecordatorio');
 
-  // Por defecto, una cita nueva es para mañana (o para hoy si está en la pestaña Hoy)
-  const fechaInicial = estado.pestana === 'hoy' ? hoyTexto() : mananaTexto();
+  const fechaInicial = estado.pestana === 'hoy' || estado.recTipo === 'llego' ? hoyTexto() : mananaTexto();
+  $('rec-fecha').value = r ? r.fecha : fechaInicial;
+  $('rec-hora').value = r ? r.hora : '';
+  $('rec-detalle').value = r ? r.detalle : '';
+  $('rec-monto').value = r && r.monto != null ? String(r.monto).replace('.', ',') : '';
+  $('rec-pago').value = r ? r.pago : estado.compartidos.pagoHabitual;
+  $('rec-nota').value = r ? r.nota : '';
+  $('rec-cliente-buscar').value = '';
+  $('rec-nombre').value = '';
+  $('rec-telefono').value = '';
 
-  $('cita-nombre').value = cita ? cita.nombre : '';
-  // Al editar, el número guardado ya es internacional: se muestra con "+"
-  $('cita-telefono').value = cita ? '+' + cita.telefono : '';
-  $('cita-fecha').value = cita ? cita.fecha : fechaInicial;
-  $('cita-hora').value = cita ? cita.hora : '';
-  $('cita-servicio').value = cita ? cita.servicio : '';
-  $('cita-nota').value = cita ? cita.nota : '';
-
-  ['nombre', 'telefono', 'fecha', 'hora'].forEach((campo) => marcarError(campo, ''));
-  actualizarNumeroFinal();
-  $('dialogo-cita').showModal();
-  if (!cita) $('cita-nombre').focus();
+  ['cliente', 'recnombre', 'rectelefono', 'fecha', 'hora', 'monto'].forEach((c) => marcarError(c, ''));
+  dibujarTiposFormulario();
+  aplicarTipoAlFormulario();
+  dibujarClienteFormulario();
+  $('dialogo-recordatorio').showModal();
 }
 
-/** Muestra (o quita) el mensaje de error de un campo del formulario. */
-function marcarError(campo, mensaje) {
-  const contenedor = $('campo-' + campo);
-  const error = contenedor.querySelector('.error');
-  contenedor.classList.toggle('invalido', Boolean(mensaje));
-  error.textContent = mensaje;
-  error.hidden = !mensaje;
+/** Botones para elegir el tipo dentro del formulario. */
+function dibujarTiposFormulario() {
+  const contenedor = $('rec-tipos');
+  contenedor.replaceChildren();
+  TIPOS.forEach((tipo) => {
+    const b = crear('button', 'ficha', `${ICONOS[tipo]} ${t('tipo_' + tipo)}`);
+    b.type = 'button';
+    b.setAttribute('role', 'radio');
+    b.setAttribute('aria-checked', String(estado.recTipo === tipo));
+    b.addEventListener('click', () => {
+      estado.recTipo = tipo;
+      dibujarTiposFormulario();
+      aplicarTipoAlFormulario();
+    });
+    contenedor.append(b);
+  });
 }
 
-/** Muestra debajo del teléfono cómo quedará el número final. */
-function actualizarNumeroFinal() {
-  const digitos = normalizarTelefono($('cita-telefono').value, estado.ajustes.codigoPais);
-  $('numero-final').textContent = telefonoValido(digitos)
-    ? t('seEnviaraA', { numero: formatearTelefono(digitos, estado.ajustes.codigoPais) })
+/** Cambia etiquetas y campos del formulario según el tipo. */
+function aplicarTipoAlFormulario() {
+  const tipo = estado.recTipo;
+  $('rec-hora-etiqueta').textContent = t(tipo === 'cita' ? 'horaObligatoria' : 'horaOpcional');
+  $('rec-detalle-etiqueta').textContent = t('detalle_' + tipo);
+  $('rec-detalle').placeholder = t('ejemploDetalle_' + tipo);
+  $('rec-cobro').hidden = tipo !== 'cobro';
+  $('rec-monto-etiqueta').textContent = t('campoMonto', { moneda: estado.compartidos.moneda });
+}
+
+/** Parte del formulario que elige el cliente. */
+function dibujarClienteFormulario() {
+  const cliente = estado.recClienteId ? clientePorId(estado.recClienteId) : null;
+  $('rec-cliente-elegido').hidden = !cliente;
+  $('rec-cliente-busqueda').hidden = Boolean(cliente) || estado.recClienteNuevo;
+  $('rec-nuevo').hidden = !estado.recClienteNuevo;
+  if (cliente) {
+    $('rec-cliente-nombre').textContent = cliente.nombre;
+    $('rec-cliente-telefono').textContent = formatearTelefono(cliente.telefono, estado.compartidos.codigoPais);
+  }
+  if (!cliente && !estado.recClienteNuevo) dibujarSugerencias();
+  if (estado.recClienteNuevo) actualizarNumeroFinal('rec-telefono', 'rec-numero-final');
+}
+
+/** ¿El cliente coincide con lo buscado? (nombre, teléfono, etiquetas o nota) */
+function clienteCoincide(cliente, busqueda) {
+  const q = paraBuscar(busqueda).trim();
+  if (!q) return true;
+  const etiquetas = (cliente.etiquetaIds || []).map((id) => (etiquetaPorId(id) || {}).nombre || '').join(' ');
+  const digitos = q.replace(/\D/g, '');
+  return paraBuscar(`${cliente.nombre} ${etiquetas} ${cliente.nota}`).includes(q)
+    || (digitos.length >= 3 && cliente.telefono.includes(digitos));
+}
+
+/** Lista de clientes sugeridos mientras se escribe, más la opción de crear uno. */
+function dibujarSugerencias() {
+  const texto = $('rec-cliente-buscar').value.trim();
+  const contenedor = $('rec-sugerencias');
+  contenedor.replaceChildren();
+  const encontrados = clientesActivos()
+    .filter((c) => clienteCoincide(c, texto))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+    .slice(0, 6);
+  encontrados.forEach((c) => {
+    const b = crear('button', 'sugerencia');
+    b.type = 'button';
+    b.append(crear('strong', '', c.nombre), crear('small', '', formatearTelefono(c.telefono, estado.compartidos.codigoPais)));
+    b.addEventListener('click', () => { estado.recClienteId = c.id; marcarError('cliente', ''); dibujarClienteFormulario(); });
+    contenedor.append(b);
+  });
+  const nuevo = crear('button', 'sugerencia sugerencia-nueva', texto ? t('crearClienteCon', { texto }) : t('crearClienteNuevo'));
+  nuevo.type = 'button';
+  nuevo.addEventListener('click', () => {
+    estado.recClienteNuevo = true;
+    // Si lo escrito parece un teléfono, va al campo teléfono; si no, al nombre
+    if (/^[\d\s()+-]{6,}$/.test(texto)) $('rec-telefono').value = texto;
+    else $('rec-nombre').value = texto;
+    marcarError('cliente', '');
+    dibujarClienteFormulario();
+    $(texto && /^[\d\s()+-]{6,}$/.test(texto) ? 'rec-nombre' : 'rec-telefono').focus();
+  });
+  contenedor.append(nuevo);
+}
+
+/** Muestra debajo de un campo de teléfono cómo quedará el número final. */
+function actualizarNumeroFinal(idCampo, idTexto) {
+  const digitos = normalizarTelefono($(idCampo).value, estado.compartidos.codigoPais);
+  $(idTexto).textContent = telefonoValido(digitos)
+    ? t('seEnviaraA', { numero: formatearTelefono(digitos, estado.compartidos.codigoPais) })
     : '';
 }
 
-async function guardarFormulario(evento) {
+/** Busca otro cliente activo con el mismo teléfono. */
+const clienteConTelefono = (telefono, exceptoId = null) =>
+  clientesActivos().find((c) => c.telefono === telefono && c.id !== exceptoId);
+
+async function guardarFormularioRecordatorio(evento) {
   evento.preventDefault();
-
-  const nombre = $('cita-nombre').value.trim();
-  const telefono = normalizarTelefono($('cita-telefono').value, estado.ajustes.codigoPais);
-  const fecha = $('cita-fecha').value;
-  const hora = $('cita-hora').value.slice(0, 5); // algunos navegadores agregan segundos
-
-  // Validar los campos obligatorios
+  const tipo = estado.recTipo;
+  const fecha = $('rec-fecha').value;
+  const hora = $('rec-hora').value.slice(0, 5);
+  const monto = leerMonto($('rec-monto').value);
   const errores = {
-    nombre: nombre ? '' : t('errorNombre'),
-    telefono: telefonoValido(telefono) ? '' : t('errorTelefono'),
     fecha: FORMATO_FECHA.test(fecha) ? '' : t('errorFecha'),
-    hora: FORMATO_HORA.test(hora) ? '' : t('errorHora')
+    hora: (hora && !FORMATO_HORA.test(hora)) || (tipo === 'cita' && !hora) ? t('errorHora') : '',
+    monto: tipo === 'cobro' && monto == null ? t('errorMonto') : '',
+    cliente: '', recnombre: '', rectelefono: ''
   };
-  Object.entries(errores).forEach(([campo, mensaje]) => marcarError(campo, mensaje));
-  const primerError = Object.keys(errores).find((campo) => errores[campo]);
-  if (primerError) { $('cita-' + primerError).focus(); return; }
 
-  const anterior = estado.citas.find((c) => c.id === estado.editandoId);
-  const ahora = Date.now();
-  const cita = {
-    id: anterior ? anterior.id : nuevoId(),
-    nombre,
-    telefono,
+  // Cliente: elegido o nuevo
+  let clienteNuevo = null;
+  if (estado.recClienteNuevo) {
+    const nombre = $('rec-nombre').value.trim();
+    const telefono = normalizarTelefono($('rec-telefono').value, estado.compartidos.codigoPais);
+    if (!nombre) errores.recnombre = t('errorNombre');
+    if (!telefonoValido(telefono)) errores.rectelefono = t('errorTelefono');
+    else if (clienteConTelefono(telefono)) errores.rectelefono = t('errorTelefonoRepetido', { nombre: clienteConTelefono(telefono).nombre });
+    if (!errores.recnombre && !errores.rectelefono) {
+      clienteNuevo = { id: nuevoId(), nombre, telefono, nota: '', etiquetaIds: [], creadoEn: Date.now() };
+    }
+  } else if (!estado.recClienteId) {
+    errores.cliente = t('errorCliente');
+  }
+
+  Object.entries(errores).forEach(([campo, mensaje]) => marcarError(campo, mensaje));
+  if (Object.values(errores).some(Boolean)) return;
+
+  const anterior = estado.recordatorios.find((x) => x.id === estado.editandoRecordatorioId);
+  const r = {
+    ...(anterior || { id: nuevoId(), enviado: false, enviadoEn: null, respuesta: '', respuestaEn: null, creadoEn: Date.now() }),
+    tipo,
+    clienteId: clienteNuevo ? clienteNuevo.id : estado.recClienteId,
     fecha,
     hora,
-    servicio: $('cita-servicio').value.trim(),
-    nota: $('cita-nota').value.trim(),
-    recordatorioEnviado: anterior ? anterior.recordatorioEnviado : false,
-    recordatorioFecha: anterior ? anterior.recordatorioFecha : null,
-    creada: anterior ? anterior.creada : ahora,
-    modificada: ahora
+    detalle: $('rec-detalle').value.trim(),
+    monto: tipo === 'cobro' ? monto : null,
+    pago: tipo === 'cobro' ? $('rec-pago').value.trim() : '',
+    nota: $('rec-nota').value.trim()
   };
-
-  // Si se cambió el día o la hora, el recordatorio enviado ya no vale
+  // Si cambió el día o la hora, el recordatorio enviado ya no vale
   if (anterior && (anterior.fecha !== fecha || anterior.hora !== hora)) {
-    cita.recordatorioEnviado = false;
-    cita.recordatorioFecha = null;
+    r.enviado = false;
+    r.enviadoEn = null;
   }
 
   try {
-    await guardarCitaBD(cita);
-    estado.citas = estado.citas.filter((c) => c.id !== cita.id).concat(cita);
-    $('dialogo-cita').close();
-    mostrarCitas();
-    avisar(t('citaGuardada'));
+    const cambios = { recordatorios: [r] };
+    if (clienteNuevo) cambios.clientes = [clienteNuevo];
+    await guardarCambios(cambios);
+    $('dialogo-recordatorio').close();
+    redibujar();
+    avisar(t('guardado'));
   } catch (error) {
     console.error(error);
     mostrarError(t('errorGuardar'));
@@ -599,35 +1153,204 @@ async function guardarFormulario(evento) {
 }
 
 /* =========================================================
-   6. RECORDATORIO POR WHATSAPP
-   (armarMensaje y enlaceWhatsApp están en core.js)
-   La app NO envía mensajes sola. Abre WhatsApp con el mensaje
-   ya escrito (enlace oficial wa.me) y la persona toca "enviar".
+   7. CLIENTES, FICHA E HISTORIAL
    ========================================================= */
 
-/** Los datos de una cita listos para poner en el mensaje. */
-function datosParaMensaje(cita) {
-  return {
-    nombre: cita.nombre,
-    servicio: cita.servicio || t('servicioGenerico'),
-    fecha: fechaAmigable(cita.fecha),
-    hora: horaAmigable(cita.hora),
-    negocio: estado.ajustes.negocio || t('negocioGenerico'),
-    direccion: estado.ajustes.direccion || ''
-  };
+/** Recordatorios activos de hoy en adelante de un cliente. */
+const proximosDeCliente = (id) => recordatoriosActivos().filter((r) => r.clienteId === id && r.fecha >= hoyTexto());
+
+/** Botones de filtro por etiqueta (en Clientes). */
+function dibujarFiltroEtiquetas() {
+  const contenedor = $('filtro-etiquetas');
+  contenedor.replaceChildren();
+  const etiquetas = etiquetasActivas();
+  contenedor.hidden = !etiquetas.length;
+  [{ id: '', nombre: t('etiquetasTodas') }, ...etiquetas].forEach((e) => {
+    const b = crear('button', 'ficha', e.id ? `🏷️ ${e.nombre}` : e.nombre);
+    b.type = 'button';
+    b.setAttribute('aria-pressed', String(estado.filtroEtiqueta === e.id));
+    b.addEventListener('click', () => { estado.filtroEtiqueta = e.id; dibujarClientes(); });
+    contenedor.append(b);
+  });
 }
+
+/** Chips de etiquetas de un cliente. */
+function chipsEtiquetas(cliente) {
+  const contenedor = crear('div', 'etiquetas');
+  (cliente.etiquetaIds || []).map(etiquetaPorId).filter((e) => e && estaActivo(e))
+    .forEach((e) => contenedor.append(crear('span', 'etiqueta', e.nombre)));
+  return contenedor;
+}
+
+/** Dibuja la lista de clientes con buscador y filtro. */
+function dibujarClientes() {
+  dibujarFiltroEtiquetas();
+  if (estado.filtroEtiqueta && !etiquetasActivas().some((e) => e.id === estado.filtroEtiqueta)) estado.filtroEtiqueta = '';
+  const lista = $('lista-clientes');
+  lista.replaceChildren();
+  const todos = clientesActivos();
+  const clientes = todos
+    .filter((c) => !estado.filtroEtiqueta || (c.etiquetaIds || []).includes(estado.filtroEtiqueta))
+    .filter((c) => clienteCoincide(c, estado.busqueda))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  $('titulo-clientes').textContent = clientes.length === 1 ? t('tituloClientesUno') : t('tituloClientes', { cantidad: clientes.length });
+  if (!clientes.length) {
+    lista.append(crear('p', 'vacio', t(todos.length ? 'vacioBusqueda' : 'vacioClientes')));
+    return;
+  }
+  clientes.forEach((c) => {
+    const fila = crear('button', 'cliente-fila');
+    fila.type = 'button';
+    const texto = crear('div', 'cliente-fila-texto');
+    texto.append(crear('strong', '', c.nombre), crear('small', '', formatearTelefono(c.telefono, estado.compartidos.codigoPais)), chipsEtiquetas(c));
+    fila.append(texto);
+    const proximos = proximosDeCliente(c.id).length;
+    if (proximos) fila.append(crear('span', 'contador-pendientes', t('pendientesCliente', { cantidad: proximos })));
+    fila.addEventListener('click', () => abrirFicha(c.id));
+    lista.append(fila);
+  });
+}
+
+/** Abre la ficha de un cliente con su historial. */
+function abrirFicha(id) {
+  estado.clienteAbierto = id;
+  mostrarVista('cliente');
+}
+
+function dibujarFicha() {
+  const c = clientePorId(estado.clienteAbierto);
+  if (!c || !estaActivo(c)) { mostrarVista('clientes'); return; }
+  $('ficha-nombre').textContent = c.nombre;
+  $('ficha-telefono').textContent = formatearTelefono(c.telefono, estado.compartidos.codigoPais);
+  $('ficha-etiquetas').replaceChildren(...chipsEtiquetas(c).childNodes);
+  $('ficha-nota').textContent = c.nota;
+  $('ficha-nota').hidden = !c.nota;
+
+  // Historial: lo más nuevo primero
+  const historial = $('ficha-historial');
+  historial.replaceChildren();
+  const suyos = ordenarRecordatorios(recordatoriosActivos().filter((r) => r.clienteId === c.id)).reverse();
+  if (!suyos.length) historial.append(crear('p', 'vacio', t('historialVacio')));
+  suyos.forEach((r) => historial.append(crearTarjeta(r, { mostrarFecha: true })));
+}
+
+/** Abre el formulario de cliente. */
+function abrirFormularioCliente(cliente = null) {
+  estado.editandoClienteId = cliente ? cliente.id : null;
+  estado.cliEtiquetaIds = cliente ? [...(cliente.etiquetaIds || [])] : [];
+  estado.cliEtiquetasNuevas = [];
+  $('cli-titulo').textContent = t(cliente ? 'tituloEditarCliente' : 'tituloNuevoCliente');
+  $('cli-nombre').value = cliente ? cliente.nombre : '';
+  $('cli-telefono').value = cliente ? '+' + cliente.telefono : '';
+  $('cli-nota').value = cliente ? cliente.nota : '';
+  $('cli-etiqueta-nueva').value = '';
+  ['clinombre', 'clitelefono'].forEach((c) => marcarError(c, ''));
+  actualizarNumeroFinal('cli-telefono', 'cli-numero-final');
+  dibujarEtiquetasFormulario();
+  $('dialogo-cliente').showModal();
+  if (!cliente) $('cli-nombre').focus();
+}
+
+/** Etiquetas elegibles en el formulario de cliente (tocar = poner/quitar). */
+function dibujarEtiquetasFormulario() {
+  const contenedor = $('cli-etiquetas');
+  contenedor.replaceChildren();
+  const todas = [...etiquetasActivas(), ...estado.cliEtiquetasNuevas];
+  todas.forEach((e) => {
+    const b = crear('button', 'ficha', e.nombre);
+    b.type = 'button';
+    b.setAttribute('aria-pressed', String(estado.cliEtiquetaIds.includes(e.id)));
+    b.addEventListener('click', () => {
+      estado.cliEtiquetaIds = estado.cliEtiquetaIds.includes(e.id)
+        ? estado.cliEtiquetaIds.filter((x) => x !== e.id)
+        : [...estado.cliEtiquetaIds, e.id];
+      dibujarEtiquetasFormulario();
+    });
+    contenedor.append(b);
+  });
+}
+
+/** Agrega una etiqueta escrita (si ya existe con ese nombre, usa la existente). */
+function agregarEtiquetaEscrita() {
+  const nombre = $('cli-etiqueta-nueva').value.trim().slice(0, 30);
+  if (!nombre) return;
+  const existente = [...etiquetasActivas(), ...estado.cliEtiquetasNuevas]
+    .find((e) => paraBuscar(e.nombre) === paraBuscar(nombre));
+  const etiqueta = existente || { id: nuevoId(), nombre };
+  if (!existente) estado.cliEtiquetasNuevas.push(etiqueta);
+  if (!estado.cliEtiquetaIds.includes(etiqueta.id)) estado.cliEtiquetaIds.push(etiqueta.id);
+  $('cli-etiqueta-nueva').value = '';
+  dibujarEtiquetasFormulario();
+}
+
+async function guardarFormularioCliente(evento) {
+  evento.preventDefault();
+  if ($('cli-etiqueta-nueva').value.trim()) agregarEtiquetaEscrita();
+  const nombre = $('cli-nombre').value.trim();
+  const telefono = normalizarTelefono($('cli-telefono').value, estado.compartidos.codigoPais);
+  const repetido = clienteConTelefono(telefono, estado.editandoClienteId);
+  marcarError('clinombre', nombre ? '' : t('errorNombre'));
+  marcarError('clitelefono', !telefonoValido(telefono) ? t('errorTelefono')
+    : repetido ? t('errorTelefonoRepetido', { nombre: repetido.nombre }) : '');
+  if (!nombre || !telefonoValido(telefono) || repetido) return;
+
+  const anterior = clientePorId(estado.editandoClienteId);
+  const cliente = {
+    ...(anterior || { id: nuevoId(), creadoEn: Date.now() }),
+    nombre,
+    telefono,
+    nota: $('cli-nota').value.trim(),
+    etiquetaIds: [...estado.cliEtiquetaIds]
+  };
+  const nuevasUsadas = estado.cliEtiquetasNuevas.filter((e) => cliente.etiquetaIds.includes(e.id));
+  try {
+    await guardarCambios({ clientes: [cliente], ...(nuevasUsadas.length ? { etiquetas: nuevasUsadas } : {}) });
+    $('dialogo-cliente').close();
+    redibujar();
+    avisar(t('guardado'));
+  } catch (error) {
+    console.error(error);
+    mostrarError(t('errorGuardar'));
+  }
+}
+
+async function eliminarCliente() {
+  const c = clientePorId(estado.clienteAbierto);
+  if (!c) return;
+  const suyos = recordatoriosActivos().filter((r) => r.clienteId === c.id);
+  const seguro = await confirmar({
+    titulo: t('confirmarEliminarClienteTitulo', { nombre: c.nombre }),
+    texto: t('confirmarEliminarClienteTexto', { cantidad: suyos.length }),
+    botonSi: t('siEliminar')
+  });
+  if (!seguro) return;
+  try {
+    await guardarCambios({ clientes: [c], recordatorios: suyos }, { borrar: true });
+    mostrarVista('clientes');
+    avisar(t('eliminado'));
+  } catch (error) {
+    console.error(error);
+    mostrarError(t('errorGuardar'));
+  }
+}
+
+/* =========================================================
+   8. ENVÍO A WHATSAPP Y ESTADOS DE RESPUESTA
+   La app NO envía mensajes sola: abre WhatsApp con el mensaje
+   escrito y la persona toca "enviar" (regla 4 de CLAUDE.md).
+   ========================================================= */
 
 /** Nombre fijo de la pestaña de WhatsApp Web: así se reusa siempre la misma. */
 const PESTANA_WHATSAPP = 'tucankit-whatsapp';
 
 /**
  * Abre WhatsApp con el mensaje ya escrito.
- *  - En el celular: enlace wa.me (abre la app de WhatsApp).
- *  - En la computadora: WhatsApp Web, siempre en la misma pestaña.
+ *  - Celular: enlace wa.me (abre la app).
+ *  - Computadora: WhatsApp Web en la misma pestaña, o la app de escritorio (según Ajustes).
  */
 function abrirWhatsApp(numero, mensaje) {
   const celular = TucankitCore.esCelular(navigator.userAgent, navigator.platform, navigator.maxTouchPoints);
-  if (celular) {
+  if (celular || estado.locales.whatsappComputadora === 'app') {
     window.open(enlaceWhatsApp(numero, mensaje, 'app'), '_blank', 'noopener');
     return;
   }
@@ -636,25 +1359,46 @@ function abrirWhatsApp(numero, mensaje) {
   if (pestana) pestana.focus();
 }
 
-function enviarRecordatorio(cita) {
-  const mensaje = armarMensaje(estado.ajustes.plantilla, datosParaMensaje(cita));
-  // Se abre primero (antes de cualquier espera) para que el navegador no lo bloquee
-  abrirWhatsApp(cita.telefono, mensaje);
-  marcarRecordatorio(cita, true);
+/** Datos para reemplazar en el mensaje. */
+function datosParaMensaje(r, cliente) {
+  const a = estado.compartidos;
+  return {
+    nombre: cliente.nombre,
+    servicio: r.detalle || t('servicioGenerico'),
+    detalle: r.detalle,
+    fecha: fechaAmigable(r.fecha),
+    hora: r.hora ? horaAmigable(r.hora) : '',
+    monto: formatearMonto(r.monto, a.moneda),
+    pago: r.pago || a.pagoHabitual || t('pagoGenerico'),
+    negocio: a.negocio || t('negocioGenerico'),
+    atiende: a.atiende,
+    direccion: a.direccion
+  };
 }
 
-/** Marca (true) o desmarca (false) el recordatorio de una cita y lo guarda. */
-async function marcarRecordatorio(cita, enviado) {
-  const actualizada = {
-    ...cita,
-    recordatorioEnviado: enviado,
-    recordatorioFecha: enviado ? Date.now() : null,
-    modificada: Date.now()
-  };
+/** Firma y enlaces de respuesta según Ajustes. */
+const firmaActual = () => (estado.compartidos.firmaActiva ? estado.compartidos.firma : '');
+const enlacesActuales = (tipo, datos) => (estado.compartidos.enlacesRespuesta
+  ? textoEnlacesRespuesta(tipo, estado.compartidos.telefonoNegocio, datos) : '');
+
+/** Arma el mensaje completo de un recordatorio. */
+function mensajeDe(r, cliente) {
+  const datos = datosParaMensaje(r, cliente);
+  return armarMensaje(estado.compartidos['plantilla_' + r.tipo], datos, firmaActual(), enlacesActuales(r.tipo, datos));
+}
+
+function enviarRecordatorio(r) {
+  const cliente = clientePorId(r.clienteId);
+  if (!cliente) return;
+  // Se abre primero (antes de cualquier espera) para que el navegador no lo bloquee
+  abrirWhatsApp(cliente.telefono, mensajeDe(r, cliente));
+  marcarEnviado(r, true);
+}
+
+async function marcarEnviado(r, enviado) {
   try {
-    await guardarCitaBD(actualizada);
-    estado.citas = estado.citas.map((c) => (c.id === cita.id ? actualizada : c));
-    mostrarCitas();
+    await guardarCambios({ recordatorios: [{ ...r, enviado, enviadoEn: enviado ? Date.now() : null }] });
+    redibujar();
     avisar(t(enviado ? 'recordatorioMarcado' : 'recordatorioDesmarcado'));
   } catch (error) {
     console.error(error);
@@ -662,94 +1406,308 @@ async function marcarRecordatorio(cita, enviado) {
   }
 }
 
+/** Marca (o quita, si ya estaba) la respuesta del cliente. */
+async function marcarRespuesta(r, respuesta) {
+  const nueva = r.respuesta === respuesta ? '' : respuesta;
+  try {
+    await guardarCambios({ recordatorios: [{ ...r, respuesta: nueva, respuestaEn: nueva ? Date.now() : null }] });
+    redibujar();
+  } catch (error) {
+    console.error(error);
+    mostrarError(t('errorGuardar'));
+  }
+}
+
 /* =========================================================
-   7. AJUSTES Y PLANTILLA DEL MENSAJE
+   9. ENVÍO EN FILA A UN GRUPO
+   WhatsApp gratis no permite enviar a muchos a la vez: la app
+   prepara cada mensaje y la persona toca enviar uno por uno.
+   El avance se guarda en este dispositivo.
    ========================================================= */
 
-/** Cambia entre la lista de citas y la pantalla de Ajustes. */
+/** Clientes del grupo elegido ("*" = todos; si no, un id de etiqueta). */
+function clientesDelGrupo(grupo) {
+  if (!grupo) return [];
+  return clientesActivos()
+    .filter((c) => grupo === '*' || (c.etiquetaIds || []).includes(grupo))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+}
+
+/** Mensaje de grupo para un cliente. */
+function mensajeDeGrupo(cliente) {
+  const a = estado.compartidos;
+  const datos = { nombre: cliente.nombre, negocio: a.negocio || t('negocioGenerico'), atiende: a.atiende, direccion: a.direccion };
+  return armarMensaje(estado.locales.envioGrupo.mensaje, datos, firmaActual());
+}
+
+function dibujarGrupos() {
+  const g = estado.locales.envioGrupo;
+  // 1. Elegir grupo
+  const elegir = $('grupo-etiquetas');
+  elegir.replaceChildren();
+  [{ id: '*', nombre: t('grupoTodos') }, ...etiquetasActivas()].forEach((e) => {
+    const b = crear('button', 'ficha', e.id === '*' ? e.nombre : `🏷️ ${e.nombre}`);
+    b.type = 'button';
+    b.setAttribute('aria-pressed', String(g.grupo === e.id));
+    b.addEventListener('click', () => cambiarGrupo(e.id));
+    elegir.append(b);
+  });
+
+  // 2. Mensaje y vista previa
+  if (document.activeElement !== $('grupo-mensaje')) $('grupo-mensaje').value = g.mensaje;
+  const clientes = clientesDelGrupo(g.grupo);
+  const ejemplo = clientes[0] || { nombre: t('ejemploNombreCliente') };
+  $('grupo-vista-previa').textContent = mensajeDeGrupo(ejemplo);
+
+  // 3. Avance
+  const enviados = clientes.filter((c) => g.enviados.includes(c.id)).length;
+  const siguiente = clientes.find((c) => !g.enviados.includes(c.id));
+  const boton = $('grupo-siguiente');
+  if (!g.grupo) {
+    $('grupo-progreso').textContent = t('grupoElegir');
+    boton.hidden = true;
+  } else if (!clientes.length) {
+    $('grupo-progreso').textContent = t('grupoVacio');
+    boton.hidden = true;
+  } else {
+    $('grupo-progreso').textContent = siguiente ? t('grupoProgreso', { enviados, total: clientes.length }) : t('grupoListo', { total: clientes.length });
+    boton.hidden = !siguiente;
+    if (siguiente) boton.textContent = t('grupoEnviarA', { nombre: siguiente.nombre, numero: enviados + 1, total: clientes.length });
+  }
+  $('grupo-reiniciar').hidden = !enviados;
+
+  // Lista con el estado de cada uno
+  const lista = $('grupo-lista');
+  lista.replaceChildren();
+  clientes.forEach((c) => {
+    const fila = crear('div', 'cliente-fila cliente-fila-estatica');
+    const texto = crear('div', 'cliente-fila-texto');
+    texto.append(crear('strong', '', c.nombre), crear('small', '', formatearTelefono(c.telefono, estado.compartidos.codigoPais)));
+    fila.append(texto);
+    if (g.enviados.includes(c.id)) {
+      fila.append(crear('span', 'grupo-hecho', t('grupoEnviado')));
+    } else {
+      const b = crear('button', 'boton boton-secundario boton-chico', t('grupoEnviar'));
+      b.type = 'button';
+      b.addEventListener('click', () => enviarAGrupo(c));
+      fila.append(b);
+    }
+    lista.append(fila);
+  });
+}
+
+async function cambiarGrupo(grupo) {
+  // Cambiar de grupo empieza la fila de nuevo
+  await guardarLocales({ envioGrupo: { ...estado.locales.envioGrupo, grupo, enviados: [] } });
+  dibujarGrupos();
+}
+
+/** Envía al cliente indicado (un toque = un mensaje) y lo marca como hecho. */
+function enviarAGrupo(cliente) {
+  if (!estado.locales.envioGrupo.mensaje.trim()) { avisar(t('grupoErrorMensaje')); return; }
+  abrirWhatsApp(cliente.telefono, mensajeDeGrupo(cliente));
+  const g = estado.locales.envioGrupo;
+  guardarLocales({ envioGrupo: { ...g, enviados: [...g.enviados, cliente.id] } })
+    .then(dibujarGrupos)
+    .catch((error) => { console.error(error); mostrarError(t('errorGuardar')); });
+}
+
+function enviarSiguienteDelGrupo() {
+  const g = estado.locales.envioGrupo;
+  const siguiente = clientesDelGrupo(g.grupo).find((c) => !g.enviados.includes(c.id));
+  if (siguiente) enviarAGrupo(siguiente);
+}
+
+/* =========================================================
+   10. AJUSTES, PLANTILLAS Y CONSTRUCTOR CON CLICS
+   ========================================================= */
+
+/** Cambia de pantalla. */
 function mostrarVista(vista) {
-  const enAjustes = vista === 'ajustes';
-  $('vista-citas').hidden = enAjustes;
-  $('vista-ajustes').hidden = !enAjustes;
-  $('btn-nueva').hidden = enAjustes;
-  $('btn-ajustes').hidden = enAjustes;
-  if (enAjustes) cargarFormularioAjustes();
-  else mostrarCitas();
+  if (vista === 'ajustes' && estado.vista !== 'ajustes') estado.vistaAnterior = estado.vista;
+  estado.vista = vista;
+  ['agenda', 'clientes', 'cliente', 'grupos', 'ajustes'].forEach((v) => { $('vista-' + v).hidden = v !== vista; });
+  document.querySelectorAll('.navegacion button').forEach((b) => {
+    const activa = b.dataset.vista === vista || (vista === 'cliente' && b.dataset.vista === 'clientes');
+    b.setAttribute('aria-current', activa ? 'page' : 'false');
+  });
+  $('btn-ajustes').hidden = vista === 'ajustes';
+  const flotante = $('btn-nueva');
+  flotante.hidden = !['agenda', 'clientes'].includes(vista);
+  flotante.textContent = t(vista === 'clientes' ? 'nuevoCliente' : 'nuevoRecordatorio');
+  if (vista === 'ajustes') cargarFormularioAjustes();
+  redibujar();
   window.scrollTo(0, 0);
+}
+
+/** Redibuja la pantalla que está a la vista. */
+function redibujar() {
+  if (estado.vista === 'agenda') dibujarAgenda();
+  else if (estado.vista === 'clientes') dibujarClientes();
+  else if (estado.vista === 'cliente') dibujarFicha();
+  else if (estado.vista === 'grupos') dibujarGrupos();
+  else if (estado.vista === 'ajustes') dibujarCopiasAuto();
+  revisarAvisos();
 }
 
 /** Pone los ajustes guardados en los campos de la pantalla de Ajustes. */
 function cargarFormularioAjustes() {
-  const a = estado.ajustes;
+  const a = estado.compartidos;
   $('aj-negocio').value = a.negocio;
+  $('aj-atiende').value = a.atiende;
   $('aj-direccion').value = a.direccion;
   $('aj-codigo').value = a.codigoPais;
-  $('aj-plantilla').value = a.plantilla;
-  ['codigo', 'plantilla'].forEach((campo) => marcarError(campo, ''));
-  actualizarVistaPrevia();
+  $('aj-moneda').value = a.moneda;
+  $('aj-pago').value = a.pagoHabitual;
+  $('aj-whatsapp-computadora').value = estado.locales.whatsappComputadora;
+  $('aj-enlaces').checked = a.enlacesRespuesta;
+  $('aj-telnegocio').value = a.telefonoNegocio ? '+' + a.telefonoNegocio : '';
+  $('aj-firma-activa').checked = a.firmaActiva;
+  $('aj-firma').value = a.firma;
+  $('aj-dispositivo').value = estado.locales.nombreDispositivo;
+  estado.editorPlantillas = {};
+  estado.editorOpciones = {};
+  TIPOS.forEach((tipo) => {
+    estado.editorPlantillas[tipo] = a['plantilla_' + tipo];
+    estado.editorOpciones[tipo] = { ...a['opciones_' + tipo] };
+  });
+  ['codigo', 'plantilla', 'telnegocio'].forEach((c) => marcarError(c, ''));
+  actualizarNumeroFinal('aj-telnegocio', 'aj-telnegocio-final');
+  dibujarEditorPlantilla();
   mostrarUltimaCopia();
+  dibujarCopiasAuto();
 }
 
-/** Muestra cómo quedaría el mensaje con datos de ejemplo. */
-function actualizarVistaPrevia() {
-  const datosEjemplo = {
-    nombre: t('ejemploNombreCliente'),
-    servicio: t('ejemploServicioCita'),
-    fecha: fechaAmigable(mananaTexto()),
-    hora: horaAmigable('15:30'),
-    negocio: $('aj-negocio').value.trim() || t('negocioGenerico'),
-    direccion: $('aj-direccion').value.trim()
-  };
-  $('vista-previa-texto').textContent = armarMensaje($('aj-plantilla').value, datosEjemplo);
+/** Opciones de las listas del constructor (saludo y despedida). */
+function llenarOpcionesConstructor() {
+  const piezas = TucankitCore.IDIOMAS[IDIOMA].constructor;
+  const saludo = $('con-saludo');
+  saludo.replaceChildren(...piezas.saludos.map((s, i) => new Option(s.replace('{nombre}', t('ejemploNombreCliente')), String(i))));
+  const cierre = $('con-cierre');
+  cierre.replaceChildren(...piezas.cierres.map((c, i) => new Option(c || t('sinCierre'), String(i))));
 }
 
-/** Inserta una palabra como {nombre} donde está el cursor en la plantilla. */
-function insertarVariable(nombre) {
-  const campo = $('aj-plantilla');
-  const texto = `{${nombre}}`;
+/** Dibuja el editor de la plantilla del tipo elegido. */
+function dibujarEditorPlantilla() {
+  const tipo = estado.editorTipo;
+  const o = estado.editorOpciones[tipo];
+
+  // Tipos
+  const tipos = $('plantilla-tipos');
+  tipos.replaceChildren();
+  TIPOS.forEach((x) => {
+    const b = crear('button', 'ficha', `${ICONOS[x]} ${t('tipo_' + x)}`);
+    b.type = 'button';
+    b.setAttribute('aria-pressed', String(x === tipo));
+    b.addEventListener('click', () => {
+      estado.editorPlantillas[estado.editorTipo] = $('aj-plantilla').value;
+      estado.editorTipo = x;
+      dibujarEditorPlantilla();
+    });
+    tipos.append(b);
+  });
+
+  // Constructor
+  $('con-saludo').value = String(o.saludo);
+  $('con-cierre').value = String(o.cierre);
+  document.querySelectorAll('.segmentado [data-trato]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.trato === o.trato)));
+  $('con-confirmar').checked = o.confirmar;
+  $('con-direccion').checked = o.direccion;
+
+  // Texto y palabras
+  $('aj-plantilla').value = estado.editorPlantillas[tipo];
+  const variables = $('variables');
+  variables.replaceChildren();
+  variablesDeTipo(tipo).forEach((nombre) => {
+    const b = crear('button', 'variable', `{${nombre}}`);
+    b.type = 'button';
+    b.addEventListener('click', () => insertarVariable($('aj-plantilla'), nombre, actualizarVistaPrevia));
+    variables.append(b);
+  });
+  actualizarVistaPrevia();
+}
+
+/** Cuando se toca una opción del constructor, se rearma el texto. */
+function alCambiarConstructor(cambio) {
+  const tipo = estado.editorTipo;
+  estado.editorOpciones[tipo] = { ...estado.editorOpciones[tipo], ...cambio };
+  estado.editorPlantillas[tipo] = construirPlantilla(tipo, estado.editorOpciones[tipo]);
+  dibujarEditorPlantilla();
+}
+
+/** Inserta una palabra como {nombre} donde está el cursor. */
+function insertarVariable(campo, nombre, despues) {
   const inicio = campo.selectionStart ?? campo.value.length;
   const fin = campo.selectionEnd ?? campo.value.length;
-  campo.setRangeText(texto, inicio, fin, 'end');
+  campo.setRangeText(`{${nombre}}`, inicio, fin, 'end');
   campo.focus();
-  actualizarVistaPrevia();
+  despues();
 }
 
-/** Crea los botones de las palabras {nombre}, {fecha}, etc. */
-function crearBotonesVariables() {
-  const contenedor = $('variables');
-  VARIABLES.forEach((nombre) => {
-    const boton = document.createElement('button');
-    boton.type = 'button';
-    boton.className = 'variable';
-    boton.textContent = `{${nombre}}`;
-    boton.addEventListener('click', () => insertarVariable(nombre));
-    contenedor.append(boton);
-  });
+/** Vista previa del mensaje del tipo elegido, con datos de ejemplo. */
+function actualizarVistaPrevia() {
+  const tipo = estado.editorTipo;
+  const texto = $('aj-plantilla').value;
+  estado.editorPlantillas[tipo] = texto;
+  $('plantilla-editada').hidden = texto === construirPlantilla(tipo, estado.editorOpciones[tipo]);
+  const datos = {
+    nombre: t('ejemploNombreCliente'),
+    servicio: t('ejemploServicio'),
+    detalle: t('ejemploDetalle'),
+    fecha: fechaAmigable(mananaTexto()),
+    hora: horaAmigable('15:30'),
+    monto: formatearMonto(15000, $('aj-moneda').value.trim() || '₡'),
+    pago: $('aj-pago').value.trim() || t('pagoGenerico'),
+    negocio: $('aj-negocio').value.trim() || t('negocioGenerico'),
+    atiende: $('aj-atiende').value.trim(),
+    direccion: $('aj-direccion').value.trim()
+  };
+  const firma = $('aj-firma-activa').checked ? $('aj-firma').value : '';
+  const telNegocio = normalizarTelefono($('aj-telnegocio').value, $('aj-codigo').value.trim() || '506');
+  const enlaces = $('aj-enlaces').checked && telefonoValido(telNegocio) ? textoEnlacesRespuesta(tipo, telNegocio, datos) : '';
+  $('vista-previa-texto').textContent = armarMensaje(texto, datos, firma, enlaces);
 }
 
 async function guardarAjustes(evento) {
   evento.preventDefault();
+  estado.editorPlantillas[estado.editorTipo] = $('aj-plantilla').value;
   const codigo = $('aj-codigo').value.trim();
-  const plantilla = $('aj-plantilla').value.trim();
+  const telNegocio = normalizarTelefono($('aj-telnegocio').value, codigo);
+  const enlaces = $('aj-enlaces').checked;
+  const vacia = TIPOS.find((tipo) => !estado.editorPlantillas[tipo].trim());
 
   const errorCodigo = /^\d{1,4}$/.test(codigo) ? '' : t('errorCodigoPais');
-  const errorPlantilla = plantilla ? '' : t('errorPlantilla');
+  const errorTel = $('aj-telnegocio').value.trim() && !telefonoValido(telNegocio) ? t('errorTelefono')
+    : enlaces && !telefonoValido(telNegocio) ? t('errorTelefonoNegocio') : '';
   marcarError('codigo', errorCodigo);
-  marcarError('plantilla', errorPlantilla);
-  if (errorCodigo) { $('aj-codigo').focus(); return; }
-  if (errorPlantilla) { $('aj-plantilla').focus(); return; }
+  marcarError('telnegocio', errorTel);
+  marcarError('plantilla', vacia ? t('errorPlantilla') : '');
+  if (vacia) { estado.editorTipo = vacia; dibujarEditorPlantilla(); marcarError('plantilla', t('errorPlantilla')); }
+  if (errorCodigo || errorTel || vacia) {
+    (errorCodigo ? $('aj-codigo') : errorTel ? $('aj-telnegocio') : $('aj-plantilla')).focus();
+    return;
+  }
 
   const nuevos = {
-    ...estado.ajustes,
+    ...estado.compartidos,
     negocio: $('aj-negocio').value.trim(),
+    atiende: $('aj-atiende').value.trim(),
     direccion: $('aj-direccion').value.trim(),
     codigoPais: codigo,
-    plantilla
+    moneda: $('aj-moneda').value.trim() || '₡',
+    pagoHabitual: $('aj-pago').value.trim(),
+    telefonoNegocio: telefonoValido(telNegocio) ? telNegocio : '',
+    enlacesRespuesta: enlaces,
+    firmaActiva: $('aj-firma-activa').checked,
+    firma: $('aj-firma').value.trim()
   };
+  TIPOS.forEach((tipo) => {
+    nuevos['plantilla_' + tipo] = estado.editorPlantillas[tipo].trim();
+    nuevos['opciones_' + tipo] = { ...estado.editorOpciones[tipo] };
+  });
   try {
-    await guardarAjustesBD(nuevos);
-    estado.ajustes = nuevos;
-    revisarAvisos();
+    await guardarCompartidos(nuevos);
+    await guardarLocales({ whatsappComputadora: $('aj-whatsapp-computadora').value === 'app' ? 'app' : 'web' });
     avisar(t('ajustesGuardados'));
   } catch (error) {
     console.error(error);
@@ -758,32 +1716,41 @@ async function guardarAjustes(evento) {
 }
 
 /* =========================================================
-   8. COPIA DE SEGURIDAD, RESTAURAR Y BORRAR TODO
-   La copia es un archivo .json con todas las citas y los ajustes.
+   11. COPIAS DE SEGURIDAD, COPIAS AUTOMÁTICAS Y BORRAR TODO
+   Formato del archivo de copia:
+     versión 1 (app v1): { app, version: 1, citas, ajustes }
+     versión 2 (actual): { app, version: 2, creada, dispositivo, datos: { clientes,
+                           recordatorios, etiquetas, ajustes } }
+   Se aceptan ambas.
    ========================================================= */
 const COPIA_APP = 'tucankit-citas';
-const COPIA_VERSION = 1;
+const COPIA_VERSION = 2;
 const DIAS_AVISO_COPIA = 7;
-let avisoCopiaCerrado = false; // "Ahora no" lo oculta hasta que se vuelva a abrir la app
+let avisoCopiaCerrado = false;
 
-/** Muestra cuándo se descargó la última copia. */
-function mostrarUltimaCopia() {
-  const ultima = estado.ajustes.ultimaCopia;
-  $('copia-ultima').textContent = ultima
-    ? t('copiaUltima', { momento: momentoAmigable(ultima) })
-    : t('copiaNunca');
-}
-
-/** Genera y descarga el archivo de copia. */
-async function descargarCopia() {
-  const copia = {
+/** Datos actuales listos para guardar en un archivo, QR o Drive. */
+function paqueteDatos() {
+  return {
     app: COPIA_APP,
     version: COPIA_VERSION,
     creada: Date.now(),
-    citas: ordenarCitas(estado.citas),
-    ajustes: estado.ajustes
+    dispositivo: { id: idDispositivo(), nombre: estado.locales.nombreDispositivo },
+    datos: {
+      clientes: estado.clientes,
+      recordatorios: estado.recordatorios,
+      etiquetas: estado.etiquetas,
+      ajustes: estado.compartidos
+    }
   };
-  const archivo = new Blob([JSON.stringify(copia, null, 2)], { type: 'application/json' });
+}
+
+function mostrarUltimaCopia() {
+  const ultima = estado.locales.ultimaCopia;
+  $('copia-ultima').textContent = ultima ? t('copiaUltima', { momento: momentoAmigable(ultima) }) : t('copiaNunca');
+}
+
+async function descargarCopia() {
+  const archivo = new Blob([JSON.stringify(paqueteDatos(), null, 2)], { type: 'application/json' });
   const enlace = document.createElement('a');
   enlace.href = URL.createObjectURL(archivo);
   enlace.download = `tucankit-citas-copia-${hoyTexto()}.json`;
@@ -791,127 +1758,274 @@ async function descargarCopia() {
   enlace.click();
   enlace.remove();
   setTimeout(() => URL.revokeObjectURL(enlace.href), 10000);
-
-  // Recordar cuándo se hizo, para el aviso de los 7 días
-  estado.ajustes = { ...estado.ajustes, ultimaCopia: Date.now() };
-  try { await guardarAjustesBD(estado.ajustes); } catch (error) { console.error(error); }
+  try { await guardarLocales({ ultimaCopia: Date.now() }); } catch (error) { console.error(error); }
   mostrarUltimaCopia();
   revisarAvisos();
   avisar(t('copiaDescargada'));
 }
 
-/** Devuelve el texto si es un texto; si no, el valor por defecto. */
-const textoO = (valor, porDefecto = '') => (typeof valor === 'string' ? valor : porDefecto);
-/** Devuelve el número si es un número válido; si no, null. */
-const numeroO = (valor) => (typeof valor === 'number' && Number.isFinite(valor) ? valor : null);
+const textoO = (v, porDefecto = '') => (typeof v === 'string' ? v : porDefecto);
+const numeroO = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
-/**
- * Revisa que un archivo de copia tenga el formato correcto.
- * Devuelve { citas, ajustes, creada } limpios, o lanza un error si algo está mal.
- * Solo se copian los campos conocidos: lo demás se ignora.
- */
-function validarCopia(datos) {
-  if (!datos || typeof datos !== 'object') throw new Error('No es un objeto');
-  if (datos.app !== COPIA_APP) throw new Error('No es una copia de Tucankit Citas');
-  if (!Number.isInteger(datos.version) || datos.version < 1 || datos.version > COPIA_VERSION) {
-    throw new Error('Versión de copia desconocida');
-  }
-  if (!Array.isArray(datos.citas)) throw new Error('Faltan las citas');
-
-  const citas = datos.citas.map((c, posicion) => {
-    const valida = c && typeof c === 'object'
-      && typeof c.id === 'string' && c.id
-      && typeof c.nombre === 'string' && c.nombre.trim()
-      && typeof c.telefono === 'string' && telefonoValido(c.telefono)
-      && typeof c.fecha === 'string' && FORMATO_FECHA.test(c.fecha)
-      && typeof c.hora === 'string' && FORMATO_HORA.test(c.hora);
-    if (!valida) throw new Error(`Cita ${posicion + 1} con datos incompletos`);
-    return {
-      id: c.id,
-      nombre: c.nombre.trim(),
-      telefono: c.telefono,
-      fecha: c.fecha,
-      hora: c.hora,
-      servicio: textoO(c.servicio),
-      nota: textoO(c.nota),
-      recordatorioEnviado: c.recordatorioEnviado === true,
-      recordatorioFecha: c.recordatorioEnviado === true ? numeroO(c.recordatorioFecha) || Date.now() : null,
-      creada: numeroO(c.creada) || Date.now(),
-      modificada: numeroO(c.modificada) || Date.now()
-    };
-  });
-
-  const a = datos.ajustes && typeof datos.ajustes === 'object' ? datos.ajustes : {};
-  const base = ajustesPorDefecto();
-  const ajustes = {
-    ...base,
-    negocio: textoO(a.negocio),
-    direccion: textoO(a.direccion),
-    codigoPais: /^\d{1,4}$/.test(textoO(a.codigoPais)) ? a.codigoPais : base.codigoPais,
-    plantilla: textoO(a.plantilla).trim() || base.plantilla,
-    primerUso: numeroO(a.primerUso) || Date.now(),
-    ayudaIphoneOculta: a.ayudaIphoneOculta === true,
-    ultimaCopia: Date.now() // quien restaura, tiene la copia en la mano
+/** Campos de sincronización de un registro (los inventa si faltan). */
+function metaDe(x, dispositivoId, ahora) {
+  return {
+    actualizadoEn: numeroO(x.actualizadoEn) || ahora,
+    dispositivoId: textoO(x.dispositivoId) || dispositivoId,
+    borradoEn: numeroO(x.borradoEn)
   };
-
-  return { citas, ajustes, creada: numeroO(datos.creada) };
 }
 
-/** Se ejecuta cuando la persona elige un archivo para restaurar. */
+/**
+ * Revisa un paquete de datos (de un archivo, un QR o Drive).
+ * Devuelve { clientes, recordatorios, etiquetas, ajustes, creada } limpios
+ * o lanza un error si algo está mal. Solo se toman los campos conocidos.
+ */
+function validarPaquete(paquete) {
+  if (!paquete || typeof paquete !== 'object' || paquete.app !== COPIA_APP) throw new Error('No es de Tucankit Citas');
+  const ahora = Date.now();
+  const disp = paquete.dispositivo && typeof paquete.dispositivo.id === 'string' ? paquete.dispositivo.id : 'copia';
+
+  // Versión 1: lista de citas → se reorganiza igual que al actualizar la app
+  if (paquete.version === 1) {
+    if (!Array.isArray(paquete.citas)) throw new Error('Faltan las citas');
+    paquete.citas.forEach((c, i) => {
+      const valida = c && typeof c.id === 'string' && typeof c.nombre === 'string' && c.nombre.trim()
+        && typeof c.telefono === 'string' && telefonoValido(c.telefono)
+        && FORMATO_FECHA.test(String(c.fecha)) && FORMATO_HORA.test(String(c.hora));
+      if (!valida) throw new Error(`Cita ${i + 1} incompleta`);
+    });
+    // Se fechan con el día de la copia (no "ahora") para que, al mezclar, no le ganen a cambios más nuevos
+    const m = migrarDesdeV1(paquete.citas, paquete.ajustes || {}, idDispositivo(), numeroO(paquete.creada) || 1);
+    return { clientes: m.clientes, recordatorios: m.recordatorios, etiquetas: [], ajustes: m.compartidos, creada: numeroO(paquete.creada) };
+  }
+
+  if (paquete.version !== 2 || !paquete.datos || typeof paquete.datos !== 'object') throw new Error('Versión desconocida');
+  const d = paquete.datos;
+  ['clientes', 'recordatorios', 'etiquetas'].forEach((k) => { if (!Array.isArray(d[k])) throw new Error(`Faltan ${k}`); });
+
+  const etiquetas = d.etiquetas.map((e, i) => {
+    if (!e || typeof e.id !== 'string' || typeof e.nombre !== 'string') throw new Error(`Etiqueta ${i + 1} incompleta`);
+    return { id: e.id, nombre: e.nombre.trim().slice(0, 30), ...metaDe(e, disp, ahora) };
+  });
+  const clientes = d.clientes.map((c, i) => {
+    const valido = c && typeof c.id === 'string' && typeof c.nombre === 'string'
+      && typeof c.telefono === 'string' && (telefonoValido(c.telefono) || c.borradoEn);
+    if (!valido) throw new Error(`Cliente ${i + 1} incompleto`);
+    return {
+      id: c.id, nombre: c.nombre.trim(), telefono: c.telefono, nota: textoO(c.nota),
+      etiquetaIds: Array.isArray(c.etiquetaIds) ? c.etiquetaIds.filter((x) => typeof x === 'string') : [],
+      creadoEn: numeroO(c.creadoEn) || ahora, ...metaDe(c, disp, ahora)
+    };
+  });
+  const respuestasValidas = ['', 'confirmo', 'cancelo', 'pago', 'respondio'];
+  const recordatorios = d.recordatorios.map((r, i) => {
+    const valido = r && typeof r.id === 'string' && TIPOS.includes(r.tipo) && typeof r.clienteId === 'string'
+      && FORMATO_FECHA.test(String(r.fecha)) && (r.hora === '' || FORMATO_HORA.test(String(r.hora)));
+    if (!valido) throw new Error(`Recordatorio ${i + 1} incompleto`);
+    return {
+      id: r.id, tipo: r.tipo, clienteId: r.clienteId, fecha: r.fecha, hora: r.hora,
+      detalle: textoO(r.detalle), monto: numeroO(r.monto), pago: textoO(r.pago), nota: textoO(r.nota),
+      enviado: r.enviado === true, enviadoEn: r.enviado === true ? (numeroO(r.enviadoEn) || ahora) : null,
+      respuesta: respuestasValidas.includes(r.respuesta) ? r.respuesta : '', respuestaEn: numeroO(r.respuestaEn),
+      creadoEn: numeroO(r.creadoEn) || ahora, ...metaDe(r, disp, ahora)
+    };
+  });
+  return { clientes, recordatorios, etiquetas, ajustes: normalizarCompartidos(d.ajustes || {}), creada: numeroO(paquete.creada) };
+}
+
+/** Guarda una copia automática de los datos actuales (se conservan las últimas 5). */
+async function guardarCopiaAuto(motivo) {
+  const ahora = Date.now();
+  const tx = bd.transaction('copiasAuto', 'readwrite');
+  const cajon = tx.objectStore('copiasAuto');
+  cajon.put({
+    id: ahora, creadaEn: ahora, motivo, formato: COPIA_VERSION,
+    datos: paqueteDatos(), cantidad: recordatoriosActivos().length
+  });
+  const claves = await esperarPedido(cajon.getAllKeys());
+  claves.sort((a, b) => a - b).slice(0, Math.max(0, claves.length - MAX_COPIAS_AUTO)).forEach((k) => cajon.delete(k));
+  await esperarTransaccion(tx);
+}
+
+/**
+ * Aplica datos que llegaron de afuera (copia, QR o Drive) con la mezcla segura:
+ * registro por registro gana el más reciente. Antes guarda una copia automática.
+ * Devuelve el resumen de cambios.
+ */
+async function aplicarMezcla(remoto, motivo) {
+  await guardarCopiaAuto(motivo);
+  const local = { clientes: estado.clientes, recordatorios: estado.recordatorios, etiquetas: estado.etiquetas, ajustes: estado.compartidos };
+  const remotoLimpio = { ...remoto, ajustes: remoto.ajustes };
+  const { datos, resumen } = mezclarDatos(local, remotoLimpio, CLAVES_COMPARTIDAS);
+  const compartidos = normalizarCompartidos(datos.ajustes);
+  await escribirDatosBD({ ...datos, compartidos });
+  Object.assign(estado, { clientes: datos.clientes, recordatorios: datos.recordatorios, etiquetas: datos.etiquetas, compartidos });
+  return resumen;
+}
+
+/**
+ * Impone un conjunto de datos (al "Reemplazar todo" o "Volver a una copia"):
+ * lo que está en la copia se marca como cambio nuevo, y lo que no está se
+ * marca como borrado. Así, si hay sincronización, se aplica en todos los
+ * dispositivos. Antes guarda una copia automática.
+ */
+async function imponerDatos(objetivo, motivo) {
+  await guardarCopiaAuto(motivo);
+  const ahora = Date.now();
+  const disp = idDispositivo();
+  const resumen = { agregados: 0, actualizados: 0, borrados: 0 };
+  const resultado = {};
+  ['clientes', 'recordatorios', 'etiquetas'].forEach((k) => {
+    const actuales = new Map(estado[k].map((r) => [r.id, r]));
+    const nuevos = new Map((objetivo[k] || []).map((r) => [r.id, { ...r, actualizadoEn: ahora, dispositivoId: disp }]));
+    nuevos.forEach((r, id) => {
+      const antes = actuales.get(id);
+      if (!antes || !estaActivo(antes)) { if (estaActivo(r)) resumen.agregados += 1; } else if (!estaActivo(r)) resumen.borrados += 1;
+      else if (JSON.stringify({ ...antes, actualizadoEn: 0, dispositivoId: '' }) !== JSON.stringify({ ...r, actualizadoEn: 0, dispositivoId: '' })) resumen.actualizados += 1;
+    });
+    actuales.forEach((r, id) => {
+      if (!nuevos.has(id)) {
+        if (estaActivo(r)) resumen.borrados += 1;
+        nuevos.set(id, estaActivo(r) ? marcarBorrado(r, disp, ahora) : r);
+      }
+    });
+    resultado[k] = [...nuevos.values()];
+  });
+  const compartidos = normalizarCompartidos(objetivo.ajustes || {});
+  CLAVES_COMPARTIDAS.forEach((k) => { compartidos._sello[k] = { actualizadoEn: ahora, dispositivoId: disp }; });
+  await escribirDatosBD({ ...resultado, compartidos });
+  Object.assign(estado, { ...resultado, compartidos });
+  alCambiarDatos();
+  return resumen;
+}
+
+/**
+ * Prepara una copia de seguridad para "Mezclar": quien restaura quiere recuperar.
+ *  - Lo borrado aquí que en la copia está vivo, vuelve (se marca como cambio nuevo).
+ *  - Los ajustes que aquí están vacíos o como de fábrica se completan con los de la copia.
+ * Todo lo demás se mezcla con la regla normal (gana lo más reciente).
+ */
+function prepararCopiaParaRecuperar(copia) {
+  const ahora = Date.now();
+  const resultado = { ...copia };
+  ['clientes', 'recordatorios', 'etiquetas'].forEach((k) => {
+    const locales = new Map(estado[k].map((r) => [r.id, r]));
+    resultado[k] = copia[k].map((r) => {
+      const local = locales.get(r.id);
+      return local && !estaActivo(local) && estaActivo(r) ? { ...r, actualizadoEn: ahora, dispositivoId: idDispositivo() } : r;
+    });
+  });
+  const fabrica = compartidosPorDefecto();
+  const ajustes = { ...copia.ajustes, _sello: { ...(copia.ajustes._sello || {}) } };
+  CLAVES_COMPARTIDAS.forEach((k) => {
+    const localDeFabrica = JSON.stringify(estado.compartidos[k]) === JSON.stringify(fabrica[k]);
+    const copiaDistinta = JSON.stringify(copia.ajustes[k]) !== JSON.stringify(fabrica[k]);
+    if (localDeFabrica && copiaDistinta) ajustes._sello[k] = { actualizadoEn: ahora, dispositivoId: idDispositivo() };
+  });
+  resultado.ajustes = ajustes;
+  return resultado;
+}
+
+/** Cuando la persona elige un archivo de copia. */
 async function restaurarCopia(evento) {
   const entrada = evento.target;
   const archivo = entrada.files && entrada.files[0];
-  entrada.value = ''; // permite elegir el mismo archivo otra vez
+  entrada.value = '';
   if (!archivo) return;
 
   let copia;
   try {
-    copia = validarCopia(JSON.parse(await archivo.text()));
+    copia = validarPaquete(JSON.parse(await archivo.text()));
   } catch (error) {
     console.warn('Copia rechazada:', error.message);
     await confirmar({ titulo: t('restaurarCopia'), texto: t('errorArchivo'), botonSi: t('entendido'), peligroso: false, soloAviso: true });
     return;
   }
 
-  const seguro = await confirmar({
+  const eleccion = await confirmar({
     titulo: t('confirmarRestaurarTitulo'),
     texto: t('confirmarRestaurarTexto', {
       momento: copia.creada ? momentoAmigable(copia.creada) : '?',
-      cantidad: copia.citas.length,
-      actuales: estado.citas.length
+      clientes: copia.clientes.filter(estaActivo).length,
+      recordatorios: copia.recordatorios.filter(estaActivo).length
     }),
-    botonSi: t('siRestaurar')
+    botonSi: t('mezclarCopia'),
+    botonAlt: t('reemplazarTodo'),
+    peligroso: false
   });
-  if (!seguro) return;
-
+  if (!eleccion) return;
   try {
-    await reemplazarTodoBD(copia.citas, copia.ajustes);
-    estado.citas = copia.citas;
-    estado.ajustes = copia.ajustes;
+    const resumen = eleccion === 'alt' ? await imponerDatos(copia, 'restaurar') : await aplicarMezcla(prepararCopiaParaRecuperar(copia), 'restaurar');
+    if (eleccion !== 'alt') alCambiarDatos();
     cargarFormularioAjustes();
-    revisarAvisos();
-    avisar(t('copiaRestaurada'));
+    redibujar();
+    avisar(t('copiaRestaurada', { resumen: textoResumen(resumen) }), 6);
   } catch (error) {
     console.error(error);
     mostrarError(t('errorGuardar'));
   }
 }
 
-/** Borra todas las citas y ajustes (pide confirmación antes). */
+/** Lista de copias automáticas, con "Volver a esta". */
+async function dibujarCopiasAuto() {
+  if (!bd) return;
+  const copias = (await leerTodoBD('copiasAuto')).sort((a, b) => b.creadaEn - a.creadaEn);
+  const lista = $('copias-auto');
+  lista.replaceChildren();
+  if (!copias.length) lista.append(crear('p', 'ayuda', t('copiasAutoVacio')));
+  copias.forEach((copia) => {
+    const fila = crear('div', 'cliente-fila cliente-fila-estatica');
+    fila.append(crear('small', 'cliente-fila-texto', t('copiaAutoFila', {
+      momento: momentoAmigable(copia.creadaEn), motivo: t('motivo_' + copia.motivo), cantidad: copia.cantidad
+    })));
+    const b = crear('button', 'boton boton-fantasma-oscuro boton-chico', t('volverACopia'));
+    b.type = 'button';
+    b.addEventListener('click', () => volverACopia(copia));
+    fila.append(b);
+    lista.append(fila);
+  });
+  const ultimaSync = copias.find((c) => c.motivo === 'sincronizacion' || c.motivo === 'qr');
+  $('btn-volver-sync').hidden = !ultimaSync;
+  $('btn-volver-sync').onclick = ultimaSync ? () => volverACopia(ultimaSync) : null;
+}
+
+/** Vuelve a una copia automática (se aplica en todos los dispositivos si hay sincronización). */
+async function volverACopia(copia) {
+  const seguro = await confirmar({
+    titulo: t('confirmarVolverTitulo'),
+    texto: t('confirmarVolverTexto', { momento: momentoAmigable(copia.creadaEn) }),
+    botonSi: t('siVolver')
+  });
+  if (!seguro) return;
+  try {
+    // Las copias de la migración guardan el formato viejo (versión 1)
+    const paquete = copia.formato === 1
+      ? { app: COPIA_APP, version: 1, citas: copia.datos.citas, ajustes: copia.datos.ajustes }
+      : copia.datos;
+    const datos = validarPaquete(paquete);
+    const resumen = await imponerDatos(datos, 'volver');
+    cargarFormularioAjustes();
+    redibujar();
+    avisar(t('copiaVuelta', { resumen: textoResumen(resumen) }), 6);
+  } catch (error) {
+    console.error(error);
+    mostrarError(t('errorGuardar'));
+  }
+}
+
+/** Borra todo (marca todo como borrado, para que se aplique también al sincronizar). */
 async function borrarTodo() {
   const seguro = await confirmar({
     titulo: t('confirmarBorrarTitulo'),
-    texto: t('confirmarBorrarTexto', { cantidad: estado.citas.length }),
+    texto: t('confirmarBorrarTexto', { clientes: clientesActivos().length, recordatorios: recordatoriosActivos().length }),
     botonSi: t('siBorrar')
   });
   if (!seguro) return;
   try {
-    const nuevos = { ...ajustesPorDefecto(), primerUso: Date.now() };
-    await reemplazarTodoBD([], nuevos);
-    estado.citas = [];
-    estado.ajustes = nuevos;
+    await imponerDatos({ clientes: [], recordatorios: [], etiquetas: [], ajustes: compartidosPorDefecto() }, 'borrar');
     cargarFormularioAjustes();
-    revisarAvisos();
+    redibujar();
     avisar(t('todoBorrado'));
   } catch (error) {
     console.error(error);
@@ -919,27 +2033,21 @@ async function borrarTodo() {
   }
 }
 
-/** Muestra u oculta los avisos de arriba según la situación. */
+/** Muestra u oculta los avisos de arriba. */
 function revisarAvisos() {
-  const a = estado.ajustes;
-  $('aviso-negocio').hidden = Boolean(a.negocio);
-
-  // Aviso de copia: si hay citas y pasaron más de 7 días desde la última copia
-  // (o desde el primer uso, si nunca se descargó una)
-  const referencia = a.ultimaCopia || a.primerUso;
+  $('aviso-negocio').hidden = Boolean(estado.compartidos.negocio);
+  const referencia = estado.locales.ultimaCopia || estado.locales.primerUso;
   const dias = referencia ? (Date.now() - referencia) / 86400000 : 0;
-  $('aviso-copia').hidden = avisoCopiaCerrado || !estado.citas.length || dias <= DIAS_AVISO_COPIA;
-
+  $('aviso-copia').hidden = avisoCopiaCerrado || !recordatoriosActivos().length || dias <= DIAS_AVISO_COPIA;
   revisarAyudaIphone();
 }
 
 /* =========================================================
-   9. INSTALACIÓN, USO SIN INTERNET Y ALMACENAMIENTO
+   12. INSTALACIÓN, USO SIN INTERNET Y ALMACENAMIENTO
    ========================================================= */
-let eventoInstalacion = null;   // permiso del navegador para mostrar "Instalar"
-let actualizacionPedida = false; // true cuando la persona tocó "Hay una versión nueva"
+let eventoInstalacion = null;
+let actualizacionPedida = false;
 
-/** Muestra el botón "Instalar app" cuando el navegador lo permite (Android, Chrome, Edge). */
 function prepararInstalacion() {
   window.addEventListener('beforeinstallprompt', (evento) => {
     evento.preventDefault();
@@ -959,45 +2067,26 @@ function prepararInstalacion() {
   });
 }
 
-/** ¿Es un iPhone o iPad? (allí no existe el botón de instalar, se hace a mano) */
 function esIphone() {
-  return /iphone|ipad|ipod/i.test(navigator.userAgent)
-    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); // iPad nuevo
+  return /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
-/** ¿La app ya está abierta como app instalada? */
 function estaInstalada() {
   return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 }
 
-/** Ayuda para instalar en iPhone: Compartir → Agregar a inicio. */
 function revisarAyudaIphone() {
-  $('aviso-iphone').hidden = !esIphone() || estaInstalada() || estado.ajustes.ayudaIphoneOculta;
+  $('aviso-iphone').hidden = !esIphone() || estaInstalada() || estado.locales.ayudaIphoneOculta;
 }
 
-async function cerrarAyudaIphone() {
-  estado.ajustes = { ...estado.ajustes, ayudaIphoneOculta: true };
-  revisarAyudaIphone();
-  try { await guardarAjustesBD(estado.ajustes); } catch (error) { console.error(error); }
-}
-
-/**
- * Registra el service worker (sw.js), que guarda la app para usarla sin internet.
- * Solo funciona en https:// o en localhost.
- */
+/** Registra el service worker (sw.js). Solo funciona en https:// o en localhost. */
 function registrarServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
-
-  // Cuando la versión nueva toma el control, se recarga la página (solo si la persona lo pidió)
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (actualizacionPedida) window.location.reload();
   });
-
   navigator.serviceWorker.register('sw.js').then((registro) => {
-    // ¿Ya había una versión nueva esperando?
     if (registro.waiting && navigator.serviceWorker.controller) avisarActualizacion(registro.waiting);
-
-    // ¿Aparece una versión nueva mientras la app está abierta?
     registro.addEventListener('updatefound', () => {
       const nuevo = registro.installing;
       if (!nuevo) return;
@@ -1005,15 +2094,12 @@ function registrarServiceWorker() {
         if (nuevo.state === 'installed' && navigator.serviceWorker.controller) avisarActualizacion(nuevo);
       });
     });
-
-    // Al volver a la app, revisar si hay una versión nueva publicada
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') registro.update().catch(() => {});
     });
   }).catch((error) => console.warn('No se pudo activar el modo sin internet:', error));
 }
 
-/** Muestra el aviso "Hay una versión nueva. Toque para actualizar." */
 function avisarActualizacion(versionNueva) {
   const aviso = $('aviso-actualizacion');
   aviso.hidden = false;
@@ -1024,10 +2110,7 @@ function avisarActualizacion(versionNueva) {
   };
 }
 
-/**
- * Pide al navegador que no borre los datos de la app para liberar espacio.
- * Si el navegador no lo permite o dice que no, la app funciona igual.
- */
+/** Pide al navegador que no borre los datos para liberar espacio. */
 async function pedirAlmacenamientoPersistente() {
   try {
     if (navigator.storage && navigator.storage.persist && !(await navigator.storage.persisted())) {
@@ -1039,31 +2122,87 @@ async function pedirAlmacenamientoPersistente() {
 }
 
 /* =========================================================
-   10. INICIO DE LA APP
+   13. INICIO DE LA APP
    ========================================================= */
 
 /** Conecta cada botón con lo que debe hacer. */
 function conectarEventos() {
-  document.querySelectorAll('.pestana').forEach((boton) => {
-    boton.addEventListener('click', () => {
-      estado.pestana = boton.dataset.pestana;
-      mostrarCitas();
-    });
+  // Navegación
+  document.querySelectorAll('.navegacion button').forEach((b) => b.addEventListener('click', () => mostrarVista(b.dataset.vista)));
+  document.querySelectorAll('.pestana').forEach((b) => b.addEventListener('click', () => { estado.pestana = b.dataset.pestana; dibujarAgenda(); }));
+  $('btn-ajustes').addEventListener('click', () => mostrarVista('ajustes'));
+  $('btn-volver').addEventListener('click', () => mostrarVista(estado.vistaAnterior === 'ajustes' ? 'agenda' : estado.vistaAnterior));
+  $('aviso-negocio-ir').addEventListener('click', () => mostrarVista('ajustes'));
+  $('btn-nueva').addEventListener('click', () => (estado.vista === 'clientes' ? abrirFormularioCliente() : abrirFormularioRecordatorio()));
+
+  // Tarjetas (agenda e historial)
+  $('lista-recordatorios').addEventListener('click', alTocarTarjeta);
+  $('ficha-historial').addEventListener('click', alTocarTarjeta);
+
+  // Formulario de recordatorio
+  $('form-recordatorio').addEventListener('submit', guardarFormularioRecordatorio);
+  $('rec-cancelar').addEventListener('click', () => $('dialogo-recordatorio').close());
+  $('rec-cliente-buscar').addEventListener('input', dibujarSugerencias);
+  $('rec-cliente-cambiar').addEventListener('click', () => { estado.recClienteId = null; dibujarClienteFormulario(); $('rec-cliente-buscar').focus(); });
+  $('rec-telefono').addEventListener('input', () => actualizarNumeroFinal('rec-telefono', 'rec-numero-final'));
+
+  // Clientes
+  $('buscar-cliente').addEventListener('input', (e) => { estado.busqueda = e.target.value; dibujarClientes(); });
+  $('btn-volver-clientes').addEventListener('click', () => mostrarVista('clientes'));
+  $('ficha-recordatorio').addEventListener('click', () => abrirFormularioRecordatorio(null, estado.clienteAbierto));
+  $('ficha-whatsapp').addEventListener('click', () => { const c = clientePorId(estado.clienteAbierto); if (c) abrirWhatsApp(c.telefono, ''); });
+  $('ficha-editar').addEventListener('click', () => abrirFormularioCliente(clientePorId(estado.clienteAbierto)));
+  $('ficha-eliminar').addEventListener('click', eliminarCliente);
+  $('form-cliente').addEventListener('submit', guardarFormularioCliente);
+  $('cli-cancelar').addEventListener('click', () => $('dialogo-cliente').close());
+  $('cli-telefono').addEventListener('input', () => actualizarNumeroFinal('cli-telefono', 'cli-numero-final'));
+  $('cli-etiqueta-agregar').addEventListener('click', agregarEtiquetaEscrita);
+  $('cli-etiqueta-nueva').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); agregarEtiquetaEscrita(); } });
+
+  // Grupos
+  $('grupo-mensaje').addEventListener('input', (e) => {
+    estado.locales.envioGrupo = { ...estado.locales.envioGrupo, mensaje: e.target.value };
+    dibujarGrupos();
   });
-  $('lista-citas').addEventListener('click', alTocarLista);
-  $('btn-nueva').addEventListener('click', () => abrirFormulario());
-  $('form-cita').addEventListener('submit', guardarFormulario);
-  $('cita-cancelar').addEventListener('click', () => $('dialogo-cita').close());
-  $('cita-telefono').addEventListener('input', actualizarNumeroFinal);
+  $('grupo-mensaje').addEventListener('change', () => guardarLocales({}).catch(console.error));
+  $('grupo-siguiente').addEventListener('click', enviarSiguienteDelGrupo);
+  $('grupo-reiniciar').addEventListener('click', () => cambiarGrupo(estado.locales.envioGrupo.grupo));
+  const variablesGrupo = $('grupo-variables');
+  VARIABLES_COMUNES.forEach((nombre) => {
+    const b = crear('button', 'variable', `{${nombre}}`);
+    b.type = 'button';
+    b.addEventListener('click', () => insertarVariable($('grupo-mensaje'), nombre, () => {
+      estado.locales.envioGrupo = { ...estado.locales.envioGrupo, mensaje: $('grupo-mensaje').value };
+      guardarLocales({}).catch(console.error);
+      dibujarGrupos();
+    }));
+    variablesGrupo.append(b);
+  });
 
   // Ajustes
-  crearBotonesVariables();
-  $('btn-ajustes').addEventListener('click', () => mostrarVista('ajustes'));
-  $('btn-volver').addEventListener('click', () => mostrarVista('citas'));
-  $('aviso-negocio-ir').addEventListener('click', () => mostrarVista('ajustes'));
+  llenarOpcionesConstructor();
   $('form-ajustes').addEventListener('submit', guardarAjustes);
-  ['aj-negocio', 'aj-direccion', 'aj-plantilla'].forEach((id) => $(id).addEventListener('input', actualizarVistaPrevia));
-  // Copia de seguridad y borrar todo
+  ['aj-negocio', 'aj-atiende', 'aj-direccion', 'aj-moneda', 'aj-pago', 'aj-firma', 'aj-plantilla', 'aj-telnegocio', 'aj-codigo']
+    .forEach((id) => $(id).addEventListener('input', actualizarVistaPrevia));
+  ['aj-firma-activa', 'aj-enlaces'].forEach((id) => $(id).addEventListener('change', actualizarVistaPrevia));
+  $('aj-telnegocio').addEventListener('input', () => actualizarNumeroFinal('aj-telnegocio', 'aj-telnegocio-final'));
+  $('con-saludo').addEventListener('change', (e) => alCambiarConstructor({ saludo: Number(e.target.value) }));
+  $('con-cierre').addEventListener('change', (e) => alCambiarConstructor({ cierre: Number(e.target.value) }));
+  $('con-confirmar').addEventListener('change', (e) => alCambiarConstructor({ confirmar: e.target.checked }));
+  $('con-direccion').addEventListener('change', (e) => alCambiarConstructor({ direccion: e.target.checked }));
+  document.querySelectorAll('.segmentado [data-trato]').forEach((b) => b.addEventListener('click', () => alCambiarConstructor({ trato: b.dataset.trato })));
+  $('btn-plantilla-defecto').addEventListener('click', () => {
+    const tipo = estado.editorTipo;
+    estado.editorOpciones[tipo] = opcionesPorDefecto(tipo);
+    estado.editorPlantillas[tipo] = plantillaPorDefecto(tipo);
+    dibujarEditorPlantilla();
+  });
+  $('btn-guardar-dispositivo').addEventListener('click', async () => {
+    await guardarLocales({ nombreDispositivo: $('aj-dispositivo').value.trim() });
+    avisar(t('dispositivoGuardado'));
+  });
+
+  // Copias y borrar todo
   $('btn-descargar').addEventListener('click', descargarCopia);
   $('aviso-copia-descargar').addEventListener('click', descargarCopia);
   $('aviso-copia-cerrar').addEventListener('click', () => { avisoCopiaCerrado = true; revisarAvisos(); });
@@ -1071,19 +2210,30 @@ function conectarEventos() {
   $('archivo-restaurar').addEventListener('change', restaurarCopia);
   $('btn-borrar-todo').addEventListener('click', borrarTodo);
 
-  // Instalación
+  // Avisos e instalación
   prepararInstalacion();
-  $('aviso-iphone-cerrar').addEventListener('click', cerrarAyudaIphone);
-
-  $('btn-plantilla-defecto').addEventListener('click', () => {
-    $('aj-plantilla').value = plantillaPorDefecto();
-    actualizarVistaPrevia();
-  });
+  $('aviso-iphone-cerrar').addEventListener('click', () => guardarLocales({ ayudaIphoneOculta: true }).then(revisarAyudaIphone));
+  $('aviso-migracion-cerrar').addEventListener('click', () => { $('aviso-migracion').hidden = true; });
 
   // Si la app queda abierta y pasa la medianoche, "hoy" y "mañana" cambian
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') mostrarCitas();
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') redibujar(); });
+}
+
+/** Lee todos los datos de la base a la memoria. */
+async function cargarDatos() {
+  const [clientes, recordatorios, etiquetas, compartidos, locales] = await Promise.all([
+    leerTodoBD('clientes'), leerTodoBD('recordatorios'), leerTodoBD('etiquetas'),
+    leerUnoBD('ajustes', 'compartidos'), leerUnoBD('ajustes', 'locales')
+  ]);
+  Object.assign(estado, {
+    clientes, recordatorios, etiquetas,
+    compartidos: normalizarCompartidos(compartidos || {}),
+    locales: normalizarLocales(locales || {})
   });
+  // Primera vez: guardar los ajustes iniciales (incluye el id de este dispositivo)
+  if (!locales || !compartidos) {
+    await guardarVariosBD({ ajustes: [{ ...estado.compartidos, clave: 'compartidos' }, { ...estado.locales, clave: 'locales' }] });
+  }
 }
 
 async function iniciar() {
@@ -1091,22 +2241,20 @@ async function iniciar() {
   conectarEventos();
   registrarServiceWorker();
   pedirAlmacenamientoPersistente();
-
   try {
-    bd = await abrirBD();
-    estado.ajustes = await leerAjustesBD();
-    if (!estado.ajustes.primerUso) {
-      estado.ajustes.primerUso = Date.now();
-      await guardarAjustesBD(estado.ajustes);
+    const abierta = await abrirBD();
+    bd = abierta.base;
+    await cargarDatos();
+    if (abierta.migracion) {
+      $('aviso-migracion-texto').textContent = t('avisoMigracion', abierta.migracion);
+      $('aviso-migracion').hidden = false;
     }
-    estado.citas = await leerCitasBD();
   } catch (error) {
     console.error(error);
     mostrarError(t('errorBD'));
     return;
   }
-  mostrarCitas();
-  revisarAvisos();
+  mostrarVista('agenda');
 }
 
 iniciar();

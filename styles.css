@@ -436,3 +436,258 @@ main {
   .pestana { font-size: .82rem; }
   .fila { grid-template-columns: 1fr; gap: 0; }
 }
+
+/* =========================================================
+   Versión 2/3: clientes, tipos, grupos, constructor
+   ========================================================= */
+
+/* Colores de cada tipo de recordatorio */
+.cita[data-tipo="cita"] { border-left-color: #f7a21b; }
+.cita[data-tipo="entrega"] { border-left-color: #3d6fd1; }
+.cita[data-tipo="cobro"] { border-left-color: #9b51e0; }
+.cita[data-tipo="seguimiento"] { border-left-color: #0b7476; }
+.cita[data-tipo="llego"] { border-left-color: #e0457b; }
+.cita.cancelada { opacity: .6; }
+.cita.cancelada .cita-nombre { text-decoration: line-through; }
+
+.tipo-insignia {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--fondo);
+  font-size: .8rem;
+  font-weight: 700;
+}
+.cita-hora.sin-hora { font-size: 1rem; color: var(--texto-suave); }
+.respuesta-insignia {
+  margin-left: auto;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--exito-fondo);
+  color: var(--exito);
+  font-size: .8rem;
+  font-weight: 800;
+}
+.respuesta-insignia[data-respuesta="cancelo"] { background: var(--peligro-fondo); color: var(--peligro); }
+
+/* El nombre en la tarjeta es un botón (abre la ficha del cliente) */
+button.cita-nombre {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--borde);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.cita-detalle { margin: 0; }
+.cita-respuestas { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+.cita-respuestas-titulo { color: var(--texto-suave); font-size: .85rem; font-weight: 600; }
+
+/* Fichas: botones redondeados para filtros y opciones */
+.fichas-filtro { display: flex; gap: 6px; margin: 12px 0 0; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.fichas-filtro::-webkit-scrollbar { display: none; }
+.fichas-tipo { flex-wrap: wrap; margin: 0 0 14px; overflow: visible; }
+.ficha {
+  flex: none;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1.5px solid var(--borde);
+  border-radius: 20px;
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  font-size: .9rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ficha[aria-pressed="true"], .ficha[aria-checked="true"] { background: var(--negro); border-color: var(--negro); color: #fff; }
+.ficha-chica { min-height: 34px; padding: 0 12px; font-size: .85rem; }
+.accion-respuesta[aria-pressed="true"] { background: var(--exito); border-color: var(--exito); }
+.accion-respuesta[data-respuesta="cancelo"][aria-pressed="true"] { background: var(--peligro); border-color: var(--peligro); }
+
+/* Barra de navegación de abajo */
+.navegacion {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 15;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding-bottom: env(safe-area-inset-bottom);
+  border-top: 1px solid var(--borde);
+  background: var(--superficie);
+}
+.navegacion button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 60px;
+  border: 0;
+  background: none;
+  color: var(--texto-suave);
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.navegacion button span:first-child { font-size: 1.3rem; }
+.navegacion button[aria-current="page"] { color: var(--negro); box-shadow: inset 0 3px 0 var(--acento); }
+.boton-flotante { bottom: calc(76px + env(safe-area-inset-bottom)); }
+.toast { bottom: calc(150px + env(safe-area-inset-bottom)); }
+.pie { padding-bottom: calc(160px + env(safe-area-inset-bottom)); }
+
+/* Clientes */
+.campo-buscar { margin-bottom: 0; }
+.lista-compacta { gap: 8px; }
+.cliente-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 60px;
+  padding: 10px 14px;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  background: var(--superficie);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.cliente-fila-estatica { cursor: default; }
+.cliente-fila-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cliente-fila-texto small { color: var(--texto-suave); }
+.contador-pendientes {
+  flex: none;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--acento-fondo);
+  font-size: .8rem;
+  font-weight: 700;
+}
+.grupo-hecho { flex: none; color: var(--exito); font-weight: 700; font-size: .9rem; }
+.etiquetas { display: flex; flex-wrap: wrap; gap: 4px; }
+.etiqueta {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--accion-fondo);
+  color: var(--accion-oscuro);
+  font-size: .78rem;
+  font-weight: 700;
+}
+.etiquetas-elegibles { gap: 6px; margin-bottom: 8px; }
+.fila-agregar { display: flex; gap: 8px; }
+.fila-agregar input { flex: 1; }
+
+/* Ficha del cliente */
+.ficha-nombre { font-size: 1.4rem; }
+.ficha-telefono { margin: 2px 0 8px; color: var(--texto-suave); }
+.ficha-acciones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.ficha-acciones .boton:not(.boton-chico) { flex: 1 1 140px; }
+
+/* Elegir cliente dentro del formulario */
+.etiqueta-campo { margin: 0 0 6px; font-weight: 600; font-size: .95rem; }
+.cliente-elegido {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 8px 8px 14px;
+  border: 1.5px solid var(--accion);
+  border-radius: 12px;
+  background: var(--accion-fondo);
+}
+.cliente-elegido div { display: flex; flex-direction: column; font-weight: 400; }
+.sugerencias { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.sugerencia {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 8px 12px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--superficie);
+  color: inherit;
+  font: inherit;
+  font-weight: 400;
+  text-align: left;
+  cursor: pointer;
+}
+.sugerencia small { color: var(--texto-suave); }
+.sugerencia-nueva { border-style: dashed; color: var(--accion-oscuro); font-weight: 700; }
+.cliente-nuevo { padding: 12px; margin-bottom: 14px; border-radius: 12px; background: var(--fondo); }
+
+/* Listas desplegables y casillas */
+.campo select,
+.fila-agregar input,
+#rec-cliente-buscar {
+  width: 100%;
+  min-height: var(--tactil);
+  padding: 10px 12px;
+  border: 1.5px solid var(--borde);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--texto);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 400;
+}
+.interruptor {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  margin-bottom: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.interruptor input { width: 22px; height: 22px; flex: none; accent-color: var(--accion); }
+
+/* Constructor de mensajes */
+.constructor { margin: 12px 0 14px; padding: 12px; border-radius: 12px; background: var(--fondo); }
+.constructor-titulo { margin: 0 0 10px; font-weight: 700; font-size: .9rem; }
+.segmentado { display: inline-flex; margin-bottom: 8px; border: 1.5px solid var(--borde); border-radius: 10px; overflow: hidden; }
+.segmentado button {
+  min-height: 40px;
+  padding: 0 18px;
+  border: 0;
+  background: var(--superficie);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.segmentado button[aria-pressed="true"] { background: var(--negro); color: #fff; }
+.boton-guardar-ajustes { margin-bottom: 16px; }
+
+/* Grupos */
+.grupo-progreso { font-weight: 700; }
+
+/* Texto solo para lectores de pantalla */
+.solo-lectores {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (min-width: 760px) {
+  .navegacion { left: 50%; right: auto; width: 720px; transform: translateX(-50%); border: 1px solid var(--borde); border-bottom: 0; border-radius: 14px 14px 0 0; }
+  .boton-flotante { bottom: 90px; }
+}
+/* En Grupos y en el formulario de cliente, las fichas bajan de línea (se ven todas) */
+#grupo-etiquetas { flex-wrap: wrap; overflow: visible; }

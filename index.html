@@ -48,6 +48,13 @@
 
     <div id="aviso-error" class="aviso aviso-peligro" role="alert" hidden></div>
 
+    <div id="aviso-migracion" class="aviso aviso-info" hidden>
+      <p id="aviso-migracion-texto"></p>
+      <div class="aviso-botones">
+        <button id="aviso-migracion-cerrar" class="boton boton-fantasma-oscuro boton-chico" type="button" data-t="entendido"></button>
+      </div>
+    </div>
+
     <div id="aviso-copia" class="aviso aviso-acento" hidden>
       <p data-t="avisoCopia"></p>
       <div class="aviso-botones">
@@ -72,8 +79,8 @@
   </div>
 
   <main>
-    <!-- ===== Vista principal: lista de citas ===== -->
-    <section id="vista-citas" class="vista">
+    <!-- ===== AGENDA: recordatorios por día ===== -->
+    <section id="vista-agenda" class="vista">
       <nav class="pestanas" role="tablist">
         <button class="pestana" role="tab" type="button" data-pestana="manana" aria-selected="true">
           <span data-t="pestanaManana"></span><span class="contador"></span>
@@ -89,51 +96,209 @@
         </button>
       </nav>
 
+      <!-- Filtro por tipo: Todos, Citas, Entregas... (lo llena app.js) -->
+      <div id="filtro-tipos" class="fichas-filtro" role="group"></div>
+
       <h2 id="titulo-lista" class="titulo-lista"></h2>
-      <div id="lista-citas" class="lista" aria-live="polite"></div>
+      <div id="lista-recordatorios" class="lista" aria-live="polite"></div>
     </section>
 
-    <!-- ===== Vista de Ajustes ===== -->
+    <!-- ===== CLIENTES: lista con buscador y etiquetas ===== -->
+    <section id="vista-clientes" class="vista" hidden>
+      <label class="campo campo-buscar">
+        <span class="solo-lectores" data-t="buscarCliente"></span>
+        <input id="buscar-cliente" type="search" autocomplete="off" data-t-placeholder="buscarCliente">
+      </label>
+      <div id="filtro-etiquetas" class="fichas-filtro" role="group"></div>
+      <h2 id="titulo-clientes" class="titulo-lista"></h2>
+      <div id="lista-clientes" class="lista lista-compacta"></div>
+    </section>
+
+    <!-- ===== FICHA DE UN CLIENTE con su historial ===== -->
+    <section id="vista-cliente" class="vista" hidden>
+      <div class="vista-cabecera">
+        <button id="btn-volver-clientes" class="boton boton-fantasma-oscuro boton-chico" type="button" data-t="volver"></button>
+      </div>
+      <div class="tarjeta">
+        <h2 id="ficha-nombre" class="ficha-nombre"></h2>
+        <p id="ficha-telefono" class="ficha-telefono"></p>
+        <div id="ficha-etiquetas" class="etiquetas"></div>
+        <p id="ficha-nota" class="cita-nota"></p>
+        <div class="ficha-acciones">
+          <button id="ficha-recordatorio" class="boton boton-accion" type="button" data-t="nuevoRecordatorioCliente"></button>
+          <button id="ficha-whatsapp" class="boton boton-secundario" type="button" data-t="abrirChat"></button>
+          <button id="ficha-editar" class="boton boton-fantasma-oscuro boton-chico" type="button" data-t="editar"></button>
+          <button id="ficha-eliminar" class="boton boton-fantasma-peligro boton-chico" type="button" data-t="eliminar"></button>
+        </div>
+      </div>
+      <h3 class="titulo-lista" data-t="historial"></h3>
+      <div id="ficha-historial" class="lista"></div>
+    </section>
+
+    <!-- ===== GRUPOS: envío en fila a clientes con una etiqueta ===== -->
+    <section id="vista-grupos" class="vista" hidden>
+      <div class="tarjeta">
+        <h2 data-t="grupoTitulo"></h2>
+        <p class="ayuda" data-t="grupoExplicacion"></p>
+
+        <h3 data-t="grupoPaso1"></h3>
+        <div id="grupo-etiquetas" class="fichas-filtro" role="group"></div>
+
+        <h3 data-t="grupoPaso2"></h3>
+        <label class="campo">
+          <span class="solo-lectores" data-t="grupoPaso2"></span>
+          <textarea id="grupo-mensaje" rows="4" maxlength="1000"></textarea>
+        </label>
+        <div id="grupo-variables" class="variables"></div>
+        <div class="vista-previa">
+          <span class="vista-previa-titulo" data-t="vistaPreviaPrimero"></span>
+          <p id="grupo-vista-previa" class="burbuja"></p>
+        </div>
+
+        <h3 data-t="grupoPaso3"></h3>
+        <p id="grupo-progreso" class="grupo-progreso"></p>
+        <button id="grupo-siguiente" class="boton boton-accion boton-ancho" type="button"></button>
+        <button id="grupo-reiniciar" class="enlace" type="button" data-t="grupoReiniciar"></button>
+      </div>
+      <div id="grupo-lista" class="lista lista-compacta"></div>
+    </section>
+
+    <!-- ===== AJUSTES ===== -->
     <section id="vista-ajustes" class="vista" hidden>
       <div class="vista-cabecera">
         <button id="btn-volver" class="boton boton-fantasma-oscuro boton-chico" type="button" data-t="volver"></button>
         <h2 data-t="ajustesTitulo"></h2>
       </div>
 
-      <form id="form-ajustes" class="tarjeta" novalidate>
-        <h3 data-t="ajustesNegocio"></h3>
-        <label class="campo">
-          <span data-t="campoNegocio"></span>
-          <input id="aj-negocio" type="text" maxlength="80" autocomplete="organization" data-t-placeholder="ejemploNegocio">
-        </label>
-        <label class="campo">
-          <span data-t="campoDireccion"></span>
-          <input id="aj-direccion" type="text" maxlength="160" autocomplete="street-address" data-t-placeholder="ejemploDireccion">
-        </label>
-        <label class="campo" id="campo-codigo">
-          <span data-t="campoCodigoPais"></span>
-          <input id="aj-codigo" type="text" inputmode="numeric" maxlength="4" autocomplete="off">
-          <small class="ayuda" data-t="ayudaCodigoPais"></small>
-          <small class="error" id="error-codigo" hidden></small>
-        </label>
-
-        <h3 data-t="ajustesMensaje"></h3>
-        <label class="campo" id="campo-plantilla">
-          <span data-t="campoPlantilla"></span>
-          <textarea id="aj-plantilla" rows="5" maxlength="1000"></textarea>
-          <small class="error" id="error-plantilla" hidden></small>
-        </label>
-        <p class="ayuda" data-t="ayudaVariables"></p>
-        <div id="variables" class="variables"></div>
-        <button id="btn-plantilla-defecto" class="enlace" type="button" data-t="restaurarPlantilla"></button>
-
-        <div class="vista-previa">
-          <span class="vista-previa-titulo" data-t="vistaPrevia"></span>
-          <p id="vista-previa-texto" class="burbuja"></p>
+      <form id="form-ajustes" novalidate>
+        <div class="tarjeta">
+          <h3 data-t="ajustesNegocio"></h3>
+          <label class="campo">
+            <span data-t="campoNegocio"></span>
+            <input id="aj-negocio" type="text" maxlength="80" autocomplete="organization" data-t-placeholder="ejemploNegocio">
+          </label>
+          <label class="campo">
+            <span data-t="campoAtiende"></span>
+            <input id="aj-atiende" type="text" maxlength="80" autocomplete="name" data-t-placeholder="ejemploAtiende">
+            <small class="ayuda" data-t="ayudaAtiende"></small>
+          </label>
+          <label class="campo">
+            <span data-t="campoDireccion"></span>
+            <input id="aj-direccion" type="text" maxlength="160" autocomplete="street-address" data-t-placeholder="ejemploDireccion">
+          </label>
+          <div class="fila">
+            <label class="campo" id="campo-codigo">
+              <span data-t="campoCodigoPais"></span>
+              <input id="aj-codigo" type="text" inputmode="numeric" maxlength="4" autocomplete="off">
+              <small class="error" hidden></small>
+            </label>
+            <label class="campo">
+              <span data-t="campoMoneda"></span>
+              <input id="aj-moneda" type="text" maxlength="4" autocomplete="off">
+            </label>
+          </div>
+          <p class="ayuda" data-t="ayudaCodigoPais"></p>
+          <label class="campo">
+            <span data-t="campoPagoHabitual"></span>
+            <input id="aj-pago" type="text" maxlength="120" autocomplete="off" data-t-placeholder="ejemploPago">
+          </label>
         </div>
 
-        <button class="boton boton-accion boton-ancho" type="submit" data-t="guardarAjustes"></button>
+        <div class="tarjeta">
+          <h3 data-t="ajustesWhatsapp"></h3>
+          <label class="campo">
+            <span data-t="campoWhatsappComputadora"></span>
+            <select id="aj-whatsapp-computadora">
+              <option value="web" data-t="opcionWhatsappWeb"></option>
+              <option value="app" data-t="opcionWhatsappApp"></option>
+            </select>
+          </label>
+          <label class="interruptor">
+            <input id="aj-enlaces" type="checkbox">
+            <span data-t="campoEnlacesRespuesta"></span>
+          </label>
+          <p class="ayuda" data-t="ayudaEnlacesRespuesta"></p>
+          <label class="campo" id="campo-telnegocio">
+            <span data-t="campoTelefonoNegocio"></span>
+            <input id="aj-telnegocio" type="tel" inputmode="tel" maxlength="25" autocomplete="tel" data-t-placeholder="ejemploTelefono">
+            <small id="aj-telnegocio-final" class="numero-final"></small>
+            <small class="error" hidden></small>
+          </label>
+        </div>
+
+        <div class="tarjeta">
+          <h3 data-t="ajustesFirma"></h3>
+          <label class="interruptor">
+            <input id="aj-firma-activa" type="checkbox">
+            <span data-t="campoFirmaActiva"></span>
+          </label>
+          <label class="campo">
+            <span data-t="campoFirma"></span>
+            <input id="aj-firma" type="text" maxlength="160" autocomplete="off" data-t-placeholder="ejemploFirma">
+            <small class="ayuda" data-t="ayudaFirma"></small>
+          </label>
+        </div>
+
+        <div class="tarjeta">
+          <h3 data-t="ajustesMensaje"></h3>
+          <p class="ayuda" data-t="ayudaPlantillas"></p>
+          <div id="plantilla-tipos" class="fichas-filtro" role="group"></div>
+
+          <!-- Constructor: armar el mensaje con clics -->
+          <div class="constructor">
+            <p class="constructor-titulo" data-t="constructorTitulo"></p>
+            <div class="fila">
+              <label class="campo">
+                <span data-t="constructorSaludo"></span>
+                <select id="con-saludo"></select>
+              </label>
+              <label class="campo">
+                <span data-t="constructorCierre"></span>
+                <select id="con-cierre"></select>
+              </label>
+            </div>
+            <div class="segmentado" role="group">
+              <button type="button" data-trato="tu" data-t="tratoTu"></button>
+              <button type="button" data-trato="usted" data-t="tratoUsted"></button>
+            </div>
+            <label class="interruptor">
+              <input id="con-confirmar" type="checkbox">
+              <span data-t="constructorConfirmar"></span>
+            </label>
+            <label class="interruptor">
+              <input id="con-direccion" type="checkbox">
+              <span data-t="constructorDireccion"></span>
+            </label>
+          </div>
+
+          <label class="campo" id="campo-plantilla">
+            <span data-t="campoPlantilla"></span>
+            <textarea id="aj-plantilla" rows="5" maxlength="1000"></textarea>
+            <small id="plantilla-editada" class="ayuda" data-t="plantillaEditadaAMano" hidden></small>
+            <small class="error" hidden></small>
+          </label>
+          <p class="ayuda" data-t="ayudaVariables"></p>
+          <div id="variables" class="variables"></div>
+          <button id="btn-plantilla-defecto" class="enlace" type="button" data-t="restaurarPlantilla"></button>
+
+          <div class="vista-previa">
+            <span class="vista-previa-titulo" data-t="vistaPrevia"></span>
+            <p id="vista-previa-texto" class="burbuja"></p>
+          </div>
+        </div>
+
+        <button class="boton boton-accion boton-ancho boton-guardar-ajustes" type="submit" data-t="guardarAjustes"></button>
       </form>
+
+      <div class="tarjeta">
+        <h3 data-t="ajustesDispositivo"></h3>
+        <label class="campo">
+          <span data-t="campoNombreDispositivo"></span>
+          <input id="aj-dispositivo" type="text" maxlength="60" autocomplete="off" data-t-placeholder="ejemploNombreDispositivo">
+          <small class="ayuda" data-t="ayudaNombreDispositivo"></small>
+        </label>
+        <button id="btn-guardar-dispositivo" class="boton boton-secundario boton-chico" type="button" data-t="guardar"></button>
+      </div>
 
       <div class="tarjeta">
         <h3 data-t="copiaTitulo"></h3>
@@ -146,6 +311,13 @@
         <input id="archivo-restaurar" type="file" accept="application/json,.json" hidden>
       </div>
 
+      <div class="tarjeta">
+        <h3 data-t="copiasAutoTitulo"></h3>
+        <p class="ayuda" data-t="copiasAutoExplicacion"></p>
+        <button id="btn-volver-sync" class="boton boton-secundario boton-ancho" type="button" data-t="volverAnteriorSync" hidden></button>
+        <div id="copias-auto" class="lista lista-compacta"></div>
+      </div>
+
       <div class="tarjeta tarjeta-peligro">
         <h3 data-t="peligroTitulo"></h3>
         <p class="ayuda" data-t="peligroExplicacion"></p>
@@ -154,8 +326,8 @@
     </section>
   </main>
 
-  <!-- Botón grande para crear una cita (abajo, al alcance del pulgar) -->
-  <button id="btn-nueva" class="boton-flotante" type="button" data-t="nuevaCita"></button>
+  <!-- Botón grande para crear (abajo, al alcance del pulgar). Su texto cambia según la pantalla. -->
+  <button id="btn-nueva" class="boton-flotante" type="button"></button>
 
   <footer class="pie">
     <a href="privacidad.html" data-t="privacidad"></a>
@@ -163,52 +335,130 @@
     <span><strong>Tucankit</strong></span>
   </footer>
 
-  <!-- Mensajes cortos que aparecen y desaparecen (ej.: "Cita guardada") -->
+  <!-- Barra de navegación de abajo -->
+  <nav class="navegacion" aria-label="Secciones">
+    <button type="button" data-vista="agenda"><span aria-hidden="true">📅</span><span data-t="navAgenda"></span></button>
+    <button type="button" data-vista="clientes"><span aria-hidden="true">👥</span><span data-t="navClientes"></span></button>
+    <button type="button" data-vista="grupos"><span aria-hidden="true">📣</span><span data-t="navGrupos"></span></button>
+  </nav>
+
+  <!-- Mensajes cortos que aparecen y desaparecen (ej.: "Guardado") -->
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-  <!-- ===== Ventana para crear o editar una cita ===== -->
-  <dialog id="dialogo-cita" class="dialogo" aria-labelledby="dialogo-cita-titulo">
-    <form id="form-cita" class="dialogo-cuerpo" novalidate>
-      <h2 id="dialogo-cita-titulo"></h2>
+  <!-- ===== Ventana para crear o editar un recordatorio ===== -->
+  <dialog id="dialogo-recordatorio" class="dialogo" aria-labelledby="rec-titulo">
+    <form id="form-recordatorio" class="dialogo-cuerpo" novalidate>
+      <h2 id="rec-titulo"></h2>
 
-      <label class="campo" id="campo-nombre">
-        <span data-t="campoNombre"></span>
-        <input id="cita-nombre" type="text" maxlength="80" autocomplete="off" data-t-placeholder="ejemploNombre">
+      <p class="etiqueta-campo" data-t="campoTipo"></p>
+      <div id="rec-tipos" class="fichas-filtro fichas-tipo" role="radiogroup"></div>
+
+      <!-- Cliente: elegido, buscador o cliente nuevo -->
+      <div class="campo" id="campo-cliente">
+        <span data-t="campoCliente"></span>
+        <div id="rec-cliente-elegido" class="cliente-elegido" hidden>
+          <div>
+            <strong id="rec-cliente-nombre"></strong>
+            <small id="rec-cliente-telefono"></small>
+          </div>
+          <button id="rec-cliente-cambiar" class="enlace" type="button" data-t="cambiar"></button>
+        </div>
+        <div id="rec-cliente-busqueda">
+          <input id="rec-cliente-buscar" type="search" autocomplete="off" data-t-placeholder="buscarOCrearCliente">
+          <div id="rec-sugerencias" class="sugerencias"></div>
+        </div>
         <small class="error" hidden></small>
-      </label>
+      </div>
 
-      <label class="campo" id="campo-telefono">
-        <span data-t="campoTelefono"></span>
-        <input id="cita-telefono" type="tel" inputmode="tel" maxlength="25" autocomplete="off" data-t-placeholder="ejemploTelefono">
-        <small id="numero-final" class="numero-final"></small>
-        <small class="error" hidden></small>
-      </label>
-
-      <div class="fila">
-        <label class="campo" id="campo-fecha">
-          <span data-t="campoFecha"></span>
-          <input id="cita-fecha" type="date">
+      <div id="rec-nuevo" class="cliente-nuevo" hidden>
+        <p class="etiqueta-campo" data-t="clienteNuevoTitulo"></p>
+        <label class="campo" id="campo-recnombre">
+          <span data-t="campoNombre"></span>
+          <input id="rec-nombre" type="text" maxlength="80" autocomplete="off" data-t-placeholder="ejemploNombre">
           <small class="error" hidden></small>
         </label>
-        <label class="campo" id="campo-hora">
-          <span data-t="campoHora"></span>
-          <input id="cita-hora" type="time">
+        <label class="campo" id="campo-rectelefono">
+          <span data-t="campoTelefono"></span>
+          <input id="rec-telefono" type="tel" inputmode="tel" maxlength="25" autocomplete="off" data-t-placeholder="ejemploTelefono">
+          <small id="rec-numero-final" class="numero-final"></small>
           <small class="error" hidden></small>
         </label>
       </div>
 
+      <div class="fila">
+        <label class="campo" id="campo-fecha">
+          <span data-t="campoFecha"></span>
+          <input id="rec-fecha" type="date">
+          <small class="error" hidden></small>
+        </label>
+        <label class="campo" id="campo-hora">
+          <span id="rec-hora-etiqueta"></span>
+          <input id="rec-hora" type="time">
+          <small class="error" hidden></small>
+        </label>
+      </div>
+
+      <div id="rec-cobro" class="fila" hidden>
+        <label class="campo" id="campo-monto">
+          <span id="rec-monto-etiqueta"></span>
+          <input id="rec-monto" type="text" inputmode="decimal" maxlength="20" autocomplete="off" data-t-placeholder="ejemploMonto">
+          <small class="error" hidden></small>
+        </label>
+        <label class="campo">
+          <span data-t="campoPago"></span>
+          <input id="rec-pago" type="text" maxlength="120" autocomplete="off" data-t-placeholder="ejemploPagoCorto">
+        </label>
+      </div>
+
       <label class="campo">
-        <span data-t="campoServicio"></span>
-        <input id="cita-servicio" type="text" maxlength="80" autocomplete="off" data-t-placeholder="ejemploServicio">
+        <span id="rec-detalle-etiqueta"></span>
+        <input id="rec-detalle" type="text" maxlength="120" autocomplete="off">
       </label>
 
       <label class="campo">
         <span data-t="campoNota"></span>
-        <textarea id="cita-nota" rows="2" maxlength="500" data-t-placeholder="ejemploNota"></textarea>
+        <textarea id="rec-nota" rows="2" maxlength="500" data-t-placeholder="ejemploNota"></textarea>
       </label>
 
       <div class="dialogo-acciones">
-        <button id="cita-cancelar" class="boton boton-fantasma-oscuro" type="button" data-t="cancelar"></button>
+        <button id="rec-cancelar" class="boton boton-fantasma-oscuro" type="button" data-t="cancelar"></button>
+        <button class="boton boton-accion" type="submit" data-t="guardar"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ===== Ventana para crear o editar un cliente ===== -->
+  <dialog id="dialogo-cliente" class="dialogo" aria-labelledby="cli-titulo">
+    <form id="form-cliente" class="dialogo-cuerpo" novalidate>
+      <h2 id="cli-titulo"></h2>
+      <label class="campo" id="campo-clinombre">
+        <span data-t="campoNombre"></span>
+        <input id="cli-nombre" type="text" maxlength="80" autocomplete="off" data-t-placeholder="ejemploNombre">
+        <small class="error" hidden></small>
+      </label>
+      <label class="campo" id="campo-clitelefono">
+        <span data-t="campoTelefono"></span>
+        <input id="cli-telefono" type="tel" inputmode="tel" maxlength="25" autocomplete="off" data-t-placeholder="ejemploTelefono">
+        <small id="cli-numero-final" class="numero-final"></small>
+        <small class="error" hidden></small>
+      </label>
+
+      <div class="campo">
+        <span data-t="campoEtiquetas"></span>
+        <div id="cli-etiquetas" class="etiquetas etiquetas-elegibles"></div>
+        <div class="fila-agregar">
+          <input id="cli-etiqueta-nueva" type="text" maxlength="30" autocomplete="off" data-t-placeholder="ejemploEtiqueta">
+          <button id="cli-etiqueta-agregar" class="boton boton-secundario boton-chico" type="button" data-t="agregar"></button>
+        </div>
+      </div>
+
+      <label class="campo">
+        <span data-t="campoNotaCliente"></span>
+        <textarea id="cli-nota" rows="3" maxlength="1000" data-t-placeholder="ejemploNotaCliente"></textarea>
+      </label>
+
+      <div class="dialogo-acciones">
+        <button id="cli-cancelar" class="boton boton-fantasma-oscuro" type="button" data-t="cancelar"></button>
         <button class="boton boton-accion" type="submit" data-t="guardar"></button>
       </div>
     </form>
@@ -221,20 +471,23 @@
       <p id="confirmar-texto" class="confirmar-texto"></p>
       <div class="dialogo-acciones">
         <button id="confirmar-no" class="boton boton-fantasma-oscuro" type="button"></button>
+        <button id="confirmar-alt" class="boton boton-peligro" type="button" hidden></button>
         <button id="confirmar-si" class="boton boton-peligro" type="button"></button>
       </div>
     </div>
   </dialog>
 
-  <!-- ===== Molde de una tarjeta de cita (app.js lo copia por cada cita) ===== -->
-  <template id="plantilla-cita">
+  <!-- ===== Molde de una tarjeta de recordatorio (app.js lo copia por cada uno) ===== -->
+  <template id="plantilla-recordatorio">
     <article class="cita">
       <div class="cita-cabecera">
+        <span class="tipo-insignia"></span>
         <span class="cita-hora"></span>
         <span class="cita-fecha"></span>
+        <span class="respuesta-insignia" hidden></span>
       </div>
-      <h3 class="cita-nombre"></h3>
-      <p class="cita-servicio"></p>
+      <button class="cita-nombre accion-cliente" type="button"></button>
+      <p class="cita-detalle"></p>
       <p class="cita-telefono"></p>
       <p class="cita-nota"></p>
       <div class="cita-enviado" hidden>
@@ -242,6 +495,9 @@
         <button class="enlace accion-desmarcar" type="button"></button>
       </div>
       <button class="boton boton-accion boton-ancho accion-enviar" type="button"></button>
+      <div class="cita-respuestas">
+        <span class="cita-respuestas-titulo"></span>
+      </div>
       <div class="cita-acciones">
         <button class="boton boton-fantasma-oscuro boton-chico accion-editar" type="button"></button>
         <button class="boton boton-fantasma-peligro boton-chico accion-eliminar" type="button"></button>
