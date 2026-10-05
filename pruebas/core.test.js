@@ -63,6 +63,19 @@ async function prueba(nombre, fn) {
     assert.equal(texto, 'Hola Ana, te aviso que tu pedido llega el martes. ¡Gracias!\n\n— Laura');
   });
 
+  await prueba('horario de atención', () => {
+    const semana = C.semanaPorDefecto();
+    semana[5] = { abierto: true, desde: '09:00', hasta: '13:00' };
+    assert.equal(C.textoHorario(semana), 'lun a vie: 9:00 a. m. – 6:00 p. m.; sáb: 9:00 a. m. – 1:00 p. m.');
+    assert.equal(C.dentroDelHorario('2026-10-05', '10:00', semana), true);   // lunes
+    assert.equal(C.dentroDelHorario('2026-10-05', '19:00', semana), false);  // lunes de noche
+    assert.equal(C.dentroDelHorario('2026-10-11', '', semana), false);       // domingo cerrado
+    const mensaje = C.armarMensaje(C.construirPlantilla('llego', { horario: true }), { nombre: 'Ana', detalle: '', horario: '' });
+    assert.ok(!mensaje.includes(':.'), 'sin restos si el horario está vacío: ' + mensaje);
+    const conHorario = C.armarMensaje('Horario: {horario}. ¡Gracias... y hasta pronto!', { horario: C.textoHorario(semana) });
+    assert.ok(conHorario.includes('1:00 p. m. ¡Gracias...'), 'sin punto doble y respetando los tres puntos: ' + conHorario);
+  });
+
   const A = 'dispositivo-A';
   const B = 'dispositivo-B';
 

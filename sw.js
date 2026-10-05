@@ -10,7 +10,7 @@
    hay que subir el número de VERSION de aquí abajo (1 → 2 → 3...).
    Si no se sube, los teléfonos seguirán mostrando la versión vieja.
    ========================================================= */
-const VERSION = 13;
+const VERSION = 14;
 const NOMBRE_CACHE = `tucankit-citas-v${VERSION}`;
 
 /** Archivos que se guardan para usar sin internet. */

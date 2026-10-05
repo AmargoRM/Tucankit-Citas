@@ -173,6 +173,20 @@ const TEXTOS = {
     campoNotaCliente: 'Nota del cliente',
     ejemploNotaCliente: 'Talla, preferencias, alergias…',
 
+    // Horario y hora opcional
+    horarioTitulo: 'Horario de atención',
+    horarioExplicacion: 'Marque los días que atiende y el horario. Se puede incluir en los mensajes con {horario}, y la app avisa si una cita cae fuera de horario.',
+    horarioQuedaAsi: 'Queda así:',
+    horarioDesde: 'abre',
+    horarioHasta: 'cierra',
+    horarioCerrado: '(sin días abiertos)',
+    constructorHorario: 'Incluir el horario de atención',
+    agregarHora: '+ Agregar hora',
+    yaPagoTodo: 'Ya pagó todo (marcar como pagado)',
+    fueraDeHorario: '⚠️ Esta cita cae fuera de su horario de atención ({horario}). Puede guardarla igual.',
+    avisoPendientes: 'Tiene {cantidad} recordatorios por enviar ({hoy} de hoy y {manana} de mañana).',
+    verPendientes: 'Ver',
+
     // Varios clientes
     quitar: 'Quitar',
     agregarOtroCliente: '+ Agregar otro cliente (opcional)',
@@ -523,7 +537,7 @@ const PLANTILLA_V1 = 'Hola {nombre}, le recordamos su cita de {servicio} el {fec
 /** Ajustes que se sincronizan entre dispositivos (campo por campo). */
 const CLAVES_COMPARTIDAS = [
   'negocio', 'atiende', 'direccion', 'pais', 'codigoPais', 'moneda', 'pagoHabitual',
-  'telefonoNegocio', 'enlacesRespuesta', 'firmaActiva', 'firma',
+  'telefonoNegocio', 'enlacesRespuesta', 'firmaActiva', 'firma', 'horarioSemana',
   ...TIPOS.map((tipo) => 'plantilla_' + tipo),
   ...TIPOS.map((tipo) => 'opciones_' + tipo)
 ];
@@ -545,6 +559,7 @@ function compartidosPorDefecto() {
   };
   TIPOS.forEach((tipo) => {
     a['opciones_' + tipo] = opcionesPorDefecto(tipo);
+    a.horarioSemana = TucankitCore.semanaPorDefecto();
     a['plantilla_' + tipo] = plantillaPorDefecto(tipo);
   });
   return a;
@@ -582,6 +597,7 @@ function limpiarOpciones(o, tipo) {
     trato: o.trato === 'usted' ? 'usted' : 'tu',
     confirmar: typeof o.confirmar === 'boolean' ? o.confirmar : base.confirmar,
     direccion: typeof o.direccion === 'boolean' ? o.direccion : base.direccion,
+    horario: o.horario === true,
     cierre: Number.isInteger(o.cierre) ? o.cierre : base.cierre
   };
 }
@@ -598,6 +614,7 @@ function normalizarCompartidos(a = {}) {
   if (a.pais === 'OTRO' || TucankitCore.paisPorCodigo(a.pais)) r.pais = a.pais;
   else if (a.codigoPais) r.pais = TucankitCore.paisPorPrefijo(String(a.codigoPais)) || 'OTRO';
   if (typeof a.telefonoNegocio === 'string' && telefonoValido(a.telefonoNegocio)) r.telefonoNegocio = a.telefonoNegocio;
+  r.horarioSemana = TucankitCore.limpiarSemana(a.horarioSemana);
   r.enlacesRespuesta = a.enlacesRespuesta === true;
   r.firmaActiva = a.firmaActiva === true;
   TIPOS.forEach((tipo) => {
@@ -1142,6 +1159,8 @@ function abrirFormularioRecordatorio(r = null, clientes = null) {
   $('rec-monto').value = r && r.monto != null ? formatearMonto(r.monto, '', idiomaMontos()) : '';
   $('rec-pago').value = r ? r.pago : estado.compartidos.pagoHabitual;
   $('rec-nota').value = r ? r.nota : '';
+  $('rec-pagado').checked = Boolean(r && r.respuesta === 'pago');
+  estado.recMostrarHora = false;
   $('rec-cliente-buscar').value = '';
   $('rec-nombre').value = '';
   $('rec-telefono').value = '';
@@ -1164,6 +1183,8 @@ function dibujarTiposFormulario() {
     b.setAttribute('role', 'radio');
     b.setAttribute('aria-checked', String(estado.recTipo === tipo));
     b.addEventListener('click', () => {
+      // "Ya llegó" es para avisar hoy: si la fecha no se tocó, pasa a hoy
+      if (tipo === 'llego' && !estado.editandoRecordatorioId && $('rec-fecha').value === mananaTexto()) $('rec-fecha').value = hoyTexto();
       estado.recTipo = tipo;
       dibujarTiposFormulario();
       aplicarTipoAlFormulario();
@@ -1177,10 +1198,26 @@ function dibujarTiposFormulario() {
 function aplicarTipoAlFormulario() {
   const tipo = estado.recTipo;
   $('rec-hora-etiqueta').textContent = t(tipo === 'cita' ? 'horaObligatoria' : 'horaOpcional');
+  // La hora solo es necesaria en las citas; en lo demás queda detrás de "+ Agregar hora"
+  const mostrarHora = tipo === 'cita' || estado.recMostrarHora || Boolean($('rec-hora').value);
+  $('campo-hora').hidden = !mostrarHora;
+  $('rec-hora-boton').hidden = mostrarHora;
+  $('rec-pagado-campo').hidden = tipo !== 'cobro';
+  revisarHorarioFormulario();
   $('rec-detalle-etiqueta').textContent = t('detalle_' + tipo);
   $('rec-detalle').placeholder = t('ejemploDetalle_' + tipo);
   $('rec-cobro').hidden = tipo !== 'cobro';
   $('rec-monto-etiqueta').textContent = t('campoMonto', { moneda: estado.compartidos.moneda });
+}
+
+/** Aviso (sin impedir) si una cita cae fuera del horario de atención. */
+function revisarHorarioFormulario() {
+  const fecha = $('rec-fecha').value;
+  const hora = $('rec-hora').value.slice(0, 5);
+  const fuera = estado.recTipo === 'cita' && FORMATO_FECHA.test(fecha)
+    && !TucankitCore.dentroDelHorario(fecha, hora, estado.compartidos.horarioSemana);
+  $('rec-aviso-horario').hidden = !fuera;
+  if (fuera) $('rec-aviso-horario').textContent = t('fueraDeHorario', { horario: TucankitCore.textoHorario(estado.compartidos.horarioSemana) || t('horarioCerrado') });
 }
 
 /**
@@ -1316,6 +1353,12 @@ async function guardarFormularioRecordatorio(evento) {
     pago: tipo === 'cobro' ? $('rec-pago').value.trim() : '',
     nota: $('rec-nota').value.trim()
   };
+  // "Ya pagó todo" en un cobro = respuesta "Pagó"
+  if (tipo === 'cobro') {
+    const pagado = $('rec-pagado').checked;
+    if (pagado && base.respuesta !== 'pago') { base.respuesta = 'pago'; base.respuestaEn = Date.now(); }
+    if (!pagado && base.respuesta === 'pago') { base.respuesta = ''; base.respuestaEn = null; }
+  }
   // Si cambió el día o la hora, el recordatorio enviado ya no vale
   if (anterior && (anterior.fecha !== fecha || anterior.hora !== hora)) {
     base.enviado = false;
@@ -1709,7 +1752,8 @@ function datosParaMensaje(r, cliente) {
     pago: r.pago || a.pagoHabitual || t('pagoGenerico'),
     negocio: a.negocio || t('negocioGenerico'),
     atiende: a.atiende,
-    direccion: a.direccion
+    direccion: a.direccion,
+    horario: TucankitCore.textoHorario(a.horarioSemana)
   };
 }
 
@@ -1936,6 +1980,7 @@ function cargarFormularioAjustes() {
   $('aj-telnegocio').value = a.telefonoNegocio ? '+' + a.telefonoNegocio : '';
   $('aj-firma-activa').checked = a.firmaActiva;
   $('aj-firma').value = a.firma;
+  dibujarHorarioFormulario(a.horarioSemana);
   $('aj-dispositivo').value = estado.locales.nombreDispositivo;
   marcarAjustesSinGuardar(false);
   estado.editorPlantillas = {};
@@ -1952,6 +1997,45 @@ function cargarFormularioAjustes() {
   estado.editandoProductoId = null;
   $('producto-agregar').textContent = t('agregar');
   dibujarProductos();
+}
+
+/** Siete filas (lunes a domingo): abierto o cerrado, desde y hasta. */
+function dibujarHorarioFormulario(semana) {
+  const contenedor = $('horario-dias');
+  contenedor.replaceChildren();
+  const nombres = TucankitCore.IDIOMAS[IDIOMA].diasHorario;
+  TucankitCore.limpiarSemana(semana).forEach((d, i) => {
+    const fila = crear('div', 'horario-dia');
+    fila.dataset.dia = String(i);
+    const abierto = crear('label', 'interruptor');
+    const casilla = crear('input');
+    casilla.type = 'checkbox';
+    casilla.checked = d.abierto;
+    casilla.className = 'horario-abierto';
+    abierto.append(casilla, crear('span', '', nombres[i]));
+    const desde = crear('input', 'horario-desde');
+    desde.type = 'time';
+    desde.value = d.desde;
+    desde.setAttribute('aria-label', `${nombres[i]}: ${t('horarioDesde')}`);
+    const hasta = crear('input', 'horario-hasta');
+    hasta.type = 'time';
+    hasta.value = d.hasta;
+    hasta.setAttribute('aria-label', `${nombres[i]}: ${t('horarioHasta')}`);
+    desde.disabled = !d.abierto;
+    hasta.disabled = !d.abierto;
+    fila.append(abierto, desde, hasta);
+    contenedor.append(fila);
+  });
+  $('horario-texto').textContent = TucankitCore.textoHorario(semana) || t('horarioCerrado');
+}
+
+/** Lee el horario de la pantalla de Ajustes. */
+function leerHorarioFormulario() {
+  return [...document.querySelectorAll('#horario-dias .horario-dia')].map((fila) => ({
+    abierto: fila.querySelector('.horario-abierto').checked,
+    desde: fila.querySelector('.horario-desde').value || '09:00',
+    hasta: fila.querySelector('.horario-hasta').value || '18:00'
+  }));
 }
 
 /** Lista de países para elegir (con bandera y código). */
@@ -2033,6 +2117,7 @@ function dibujarEditorPlantilla() {
   document.querySelectorAll('.segmentado [data-trato]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.trato === o.trato)));
   $('con-confirmar').checked = o.confirmar;
   $('con-direccion').checked = o.direccion;
+  $('con-horario').checked = Boolean(o.horario);
 
   // Texto y palabras
   $('aj-plantilla').value = estado.editorPlantillas[tipo];
@@ -2080,7 +2165,8 @@ function actualizarVistaPrevia() {
     pago: $('aj-pago').value.trim() || t('pagoGenerico'),
     negocio: $('aj-negocio').value.trim() || t('negocioGenerico'),
     atiende: $('aj-atiende').value.trim(),
-    direccion: $('aj-direccion').value.trim()
+    direccion: $('aj-direccion').value.trim(),
+    horario: TucankitCore.textoHorario(leerHorarioFormulario())
   };
   const firma = $('aj-firma-activa').checked ? $('aj-firma').value : '';
   const telNegocio = normalizarTelefono($('aj-telnegocio').value, $('aj-codigo').value.trim());
@@ -2120,7 +2206,8 @@ async function guardarAjustes(evento) {
     telefonoNegocio: telefonoValido(telNegocio) ? telNegocio : '',
     enlacesRespuesta: enlaces,
     firmaActiva: $('aj-firma-activa').checked,
-    firma: $('aj-firma').value.trim()
+    firma: $('aj-firma').value.trim(),
+    horarioSemana: leerHorarioFormulario()
   };
   TIPOS.forEach((tipo) => {
     nuevos['plantilla_' + tipo] = estado.editorPlantillas[tipo].trim();
@@ -2471,7 +2558,35 @@ async function borrarTodo() {
 }
 
 /** Muestra u oculta los avisos de arriba. */
+/**
+ * Recordatorios por enviar: de hoy y de mañana, no enviados ni cancelados.
+ * (Sin servidor, la app no puede avisar estando cerrada: avisa al abrirla
+ * y pone el número en el ícono de la app instalada, donde se permite.)
+ */
+const porEnviar = () => {
+  const hoy = hoyTexto();
+  const manana = mananaTexto();
+  return recordatoriosActivos().filter((r) => (r.fecha === hoy || r.fecha === manana) && !r.enviado && r.respuesta !== 'cancelo' && r.respuesta !== 'pago');
+};
+let avisoPendientesCerrado = false;
+
+function revisarPendientes() {
+  const pendientes = porEnviar();
+  const n = pendientes.length;
+  $('aviso-pendientes').hidden = avisoPendientesCerrado || !n || estado.vista !== 'agenda';
+  if (n) {
+    const deHoy = pendientes.filter((r) => r.fecha === hoyTexto()).length;
+    $('aviso-pendientes-texto').textContent = t('avisoPendientes', { cantidad: n, hoy: deHoy, manana: n - deHoy });
+  }
+  // Número en el ícono de la app instalada (si el sistema lo permite)
+  try {
+    if (n && navigator.setAppBadge) navigator.setAppBadge(n).catch(() => {});
+    else if (!n && navigator.clearAppBadge) navigator.clearAppBadge().catch(() => {});
+  } catch (error) { /* no disponible */ }
+}
+
 function revisarAvisos() {
+  revisarPendientes();
   $('aviso-negocio').hidden = Boolean(estado.compartidos.negocio);
   const referencia = estado.locales.ultimaCopia || estado.locales.primerUso;
   const dias = referencia ? (Date.now() - referencia) / 86400000 : 0;
@@ -3208,6 +3323,8 @@ function conectarEventos() {
   $('rec-cancelar').addEventListener('click', () => $('dialogo-recordatorio').close());
   $('rec-cliente-buscar').addEventListener('input', dibujarSugerencias);
   $('rec-telefono').addEventListener('input', () => actualizarNumeroFinal('rec-telefono', 'rec-numero-final'));
+  $('rec-agregar-hora').addEventListener('click', () => { estado.recMostrarHora = true; aplicarTipoAlFormulario(); $('rec-hora').focus(); });
+  ['rec-fecha', 'rec-hora'].forEach((id) => $(id).addEventListener('input', revisarHorarioFormulario));
 
   // Clientes
   $('buscar-cliente').addEventListener('input', (e) => { estado.busqueda = e.target.value; dibujarClientes(); });
@@ -3268,6 +3385,16 @@ function conectarEventos() {
   $('con-cierre').addEventListener('change', (e) => alCambiarConstructor({ cierre: Number(e.target.value) }));
   $('con-confirmar').addEventListener('change', (e) => alCambiarConstructor({ confirmar: e.target.checked }));
   $('con-direccion').addEventListener('change', (e) => alCambiarConstructor({ direccion: e.target.checked }));
+  $('con-horario').addEventListener('change', (e) => alCambiarConstructor({ horario: e.target.checked }));
+  $('horario-dias').addEventListener('input', () => {
+    const semana = leerHorarioFormulario();
+    document.querySelectorAll('#horario-dias .horario-dia').forEach((fila, i) => {
+      fila.querySelector('.horario-desde').disabled = !semana[i].abierto;
+      fila.querySelector('.horario-hasta').disabled = !semana[i].abierto;
+    });
+    $('horario-texto').textContent = TucankitCore.textoHorario(semana) || t('horarioCerrado');
+    actualizarVistaPrevia();
+  });
   document.querySelectorAll('.segmentado [data-trato]').forEach((b) => b.addEventListener('click', () => alCambiarConstructor({ trato: b.dataset.trato })));
   $('btn-plantilla-defecto').addEventListener('click', () => {
     const tipo = estado.editorTipo;
@@ -3311,6 +3438,13 @@ function conectarEventos() {
   // Avisos e instalación
   prepararInstalacion();
   $('aviso-iphone-cerrar').addEventListener('click', () => guardarLocales({ ayudaIphoneOculta: true }).then(revisarAyudaIphone));
+  $('aviso-pendientes-cerrar').addEventListener('click', () => { avisoPendientesCerrado = true; revisarPendientes(); });
+  $('aviso-pendientes-ver').addEventListener('click', () => {
+    avisoPendientesCerrado = true;
+    estado.pestana = porEnviar().some((r) => r.fecha === hoyTexto()) ? 'hoy' : 'manana';
+    estado.filtroTipo = 'todos';
+    mostrarVista('agenda');
+  });
   $('aviso-direccion-cerrar').addEventListener('click', () => guardarLocales({ avisoDireccionOculto: true }).then(revisarAvisos));
   $('aviso-migracion-cerrar').addEventListener('click', () => { $('aviso-migracion').hidden = true; });
 

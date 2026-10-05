@@ -48,6 +48,14 @@
 
     <div id="aviso-error" class="aviso aviso-peligro" role="alert" hidden></div>
 
+    <div id="aviso-pendientes" class="aviso aviso-acento" hidden>
+      <p id="aviso-pendientes-texto"></p>
+      <div class="aviso-botones">
+        <button id="aviso-pendientes-ver" class="boton boton-accion boton-chico" type="button" data-t="verPendientes"></button>
+        <button id="aviso-pendientes-cerrar" class="boton boton-fantasma-oscuro boton-chico" type="button" data-t="ahoraNo"></button>
+      </div>
+    </div>
+
     <div id="aviso-drive" class="aviso aviso-acento" hidden>
       <p id="aviso-drive-texto"></p>
       <div class="aviso-botones">
@@ -247,6 +255,13 @@
         </div>
 
         <div class="tarjeta">
+          <h3 data-t="horarioTitulo"></h3>
+          <p class="ayuda" data-t="horarioExplicacion"></p>
+          <div id="horario-dias" class="horario-dias"></div>
+          <p class="ayuda"><strong data-t="horarioQuedaAsi"></strong> <span id="horario-texto"></span></p>
+        </div>
+
+        <div class="tarjeta">
           <h3 data-t="ajustesWhatsapp"></h3>
           <label class="campo">
             <span data-t="campoWhatsappComputadora"></span>
@@ -310,6 +325,10 @@
             <label class="interruptor">
               <input id="con-direccion" type="checkbox">
               <span data-t="constructorDireccion"></span>
+            </label>
+            <label class="interruptor">
+              <input id="con-horario" type="checkbox">
+              <span data-t="constructorHorario"></span>
             </label>
           </div>
 
@@ -463,7 +482,12 @@
           <input id="rec-hora" type="time">
           <small class="error" hidden></small>
         </label>
+        <div class="campo" id="rec-hora-boton">
+          <span>&nbsp;</span>
+          <button id="rec-agregar-hora" class="boton boton-fantasma-oscuro" type="button" data-t="agregarHora"></button>
+        </div>
       </div>
+      <p id="rec-aviso-horario" class="aviso-horario" hidden></p>
 
       <div id="rec-cobro" class="fila" hidden>
         <label class="campo" id="campo-monto">
@@ -476,6 +500,10 @@
           <input id="rec-pago" type="text" maxlength="120" autocomplete="off" data-t-placeholder="ejemploPagoCorto">
         </label>
       </div>
+      <label id="rec-pagado-campo" class="interruptor" hidden>
+        <input id="rec-pagado" type="checkbox">
+        <span data-t="yaPagoTodo"></span>
+      </label>
 
       <label class="campo">
         <span id="rec-detalle-etiqueta"></span>

@@ -799,3 +799,20 @@ button.cita-nombre {
 .cliente-fila .marca-seleccion + .cliente-fila-texto { margin-left: 4px; }
 /* Si la barra de selección está a la vista, el mensaje corto sube para no taparla */
 body:has(#barra-seleccion:not([hidden])) .toast { bottom: calc(200px + env(safe-area-inset-bottom)); }
+
+/* Horario de atención */
+.horario-dias { display: flex; flex-direction: column; gap: 6px; }
+.horario-dia { display: grid; grid-template-columns: 1fr 96px 96px; align-items: center; gap: 6px; }
+.horario-dia .interruptor { margin: 0; min-height: 40px; }
+.horario-dia input[type="time"] {
+  min-width: 0;
+  min-height: 40px;
+  padding: 4px 6px;
+  border: 1.5px solid var(--borde);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 15px;
+}
+.horario-dia input[type="time"]:disabled { opacity: .35; }
+.aviso-horario { margin: -6px 0 12px; color: #8a4b00; font-size: .88rem; font-weight: 700; }
+#rec-hora-boton .boton { width: 100%; min-height: var(--tactil); }

@@ -36,6 +36,10 @@
       fechaFormato: '{dia} {numero} de {mes}',
       fechaFormatoConAnio: '{dia} {numero} de {mes} de {anio}',
       momentoFormato: '{fecha}, {hora}',
+      // Días de la semana empezando por el lunes (para el horario de atención)
+      diasCortos: ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'],
+      diasHorario: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'],
+      rangoDias: '{desde} a {hasta}',
       // Piezas para armar plantillas con clics (constructor de mensajes).
       // Cada pieza tiene versión "tu" (tú) y "usted".
       constructor: {
@@ -64,6 +68,7 @@
         },
         pedirConfirmacion: { tu: 'Por favor responde SÍ para confirmar.', usted: 'Por favor responda SÍ para confirmar.' },
         direccion: { tu: 'Te espero en {direccion}.', usted: 'Le esperamos en {direccion}.' },
+        horario: { tu: 'Mi horario de atención: {horario}.', usted: 'Nuestro horario de atención: {horario}.' },
         cierres: ['¡Gracias!', '¡Muchas gracias!', '¡Gracias por confiar en {negocio}!', 'Saludos.', '']
       },
       // Opciones con que se arma la plantilla original de cada tipo
@@ -185,6 +190,7 @@
     const partes = [saludo, cuerpo];
     if (o.confirmar) partes.push(piezas.pedirConfirmacion[trato]);
     if (o.direccion) partes.push(piezas.direccion[trato]);
+    if (o.horario) partes.push(piezas.horario[trato]);
     const cierre = piezas.cierres[o.cierre] ?? '';
     if (cierre) partes.push(cierre);
     return partes.join(' ');
@@ -211,7 +217,7 @@
      ========================================================= */
 
   /** Palabras que se pueden usar en cualquier plantilla. */
-  const VARIABLES_COMUNES = ['nombre', 'negocio', 'atiende', 'direccion'];
+  const VARIABLES_COMUNES = ['nombre', 'negocio', 'atiende', 'direccion', 'horario'];
 
   /** Palabras propias de cada tipo de recordatorio. */
   const VARIABLES_POR_TIPO = {
@@ -254,6 +260,8 @@
       .replace(/\(\s*\)/g, '')            // paréntesis vacíos
       .replace(/[ \t]{2,}/g, ' ')           // espacios dobles
       .replace(/[ \t]+([.,;:!?)])/g, '$1')  // espacio antes de un signo
+      .replace(/:([.!?])/g, '$1')           // "horario:." cuando el dato venía vacío
+      .replace(/([^.])\.\.(?!\.)/g, '$1.')   // "p. m.." → "p. m." (respeta los "...")
       .replace(/[ \t]+\n/g, '\n')           // espacios al final de una línea
       .trim();
   }
@@ -369,6 +377,55 @@
       fecha: fechaAmigable(fechaATexto(d)),
       hora: horaAmigable(`${dosDigitos(d.getHours())}:${dosDigitos(d.getMinutes())}`)
     });
+  }
+
+  /* ---------- Horario de atención ----------
+     Una semana es una lista de 7 días, empezando por el lunes:
+       { abierto: true/false, desde: "HH:MM", hasta: "HH:MM" } */
+
+  /** Semana con lunes a viernes de 9:00 a 18:00 y fin de semana cerrado. */
+  const semanaPorDefecto = () => Array.from({ length: 7 }, (_, i) => ({ abierto: i < 5, desde: '09:00', hasta: '18:00' }));
+
+  /** Revisa una semana (de un archivo o de la base). Si no sirve, devuelve la de por defecto. */
+  function limpiarSemana(semana) {
+    if (!Array.isArray(semana) || semana.length !== 7) return semanaPorDefecto();
+    return semana.map((d) => ({
+      abierto: Boolean(d && d.abierto),
+      desde: d && FORMATO_HORA.test(String(d.desde)) ? d.desde : '09:00',
+      hasta: d && FORMATO_HORA.test(String(d.hasta)) ? d.hasta : '18:00'
+    }));
+  }
+
+  /**
+   * Texto del horario, juntando días seguidos con el mismo horario.
+   * Ej.: "lun a vie: 9:00 a. m. – 6:00 p. m.; sáb: 9:00 a. m. – 1:00 p. m."
+   */
+  function textoHorario(semana) {
+    const dias = dato('diasCortos');
+    const grupos = [];
+    limpiarSemana(semana).forEach((d, i) => {
+      const ultimo = grupos[grupos.length - 1];
+      if (d.abierto && ultimo && ultimo.fin === i - 1 && ultimo.desde === d.desde && ultimo.hasta === d.hasta) ultimo.fin = i;
+      else if (d.abierto) grupos.push({ inicio: i, fin: i, desde: d.desde, hasta: d.hasta });
+    });
+    return grupos.map((g) => {
+      const nombre = g.inicio === g.fin ? dias[g.inicio]
+        : g.fin === g.inicio + 1 ? `${dias[g.inicio]} y ${dias[g.fin]}`
+          : reemplazarVariables(dato('rangoDias'), { desde: dias[g.inicio], hasta: dias[g.fin] });
+      return `${nombre}: ${horaAmigable(g.desde)} – ${horaAmigable(g.hasta)}`;
+    }).join('; ');
+  }
+
+  /**
+   * ¿La fecha y hora caen dentro del horario de atención?
+   * Sin hora, solo revisa que ese día esté abierto.
+   */
+  function dentroDelHorario(fecha, hora, semana) {
+    const diaSemana = (textoAFechaLocal(fecha).getDay() + 6) % 7; // 0 = lunes
+    const d = limpiarSemana(semana)[diaSemana];
+    if (!d.abierto) return false;
+    if (!hora) return true;
+    return hora >= d.desde && hora < d.hasta;
   }
 
   /* =========================================================
@@ -658,6 +715,10 @@
     fechaAmigable,
     horaAmigable,
     momentoAmigable,
+    semanaPorDefecto,
+    limpiarSemana,
+    textoHorario,
+    dentroDelHorario,
     normalizarTelefono,
     telefonoValido,
     formatearTelefono,
