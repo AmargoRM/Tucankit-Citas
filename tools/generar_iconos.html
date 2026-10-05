@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Generar íconos · Tucankit Citas</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; background: #eee; }
+    .icono { display: inline-block; margin: 0 16px 16px 0; text-align: center; }
+    canvas { display: block; width: 128px; height: 128px; margin-bottom: 6px; background: repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 0 0 / 16px 16px; }
+  </style>
+</head>
+<body>
+  <!--
+    Herramienta para el dueño del proyecto (no es parte de la app).
+    Genera los íconos PNG a partir de icons/logo.svg, sin instalar nada.
+    Uso: con la app abierta en localhost (python3 -m http.server 8000), entrar a
+    http://localhost:8000/tools/generar_iconos.html y tocar cada «Descargar».
+    Luego copiar los archivos a la carpeta icons/ y subir VERSION en sw.js.
+  -->
+  <h1>Íconos de Tucankit Citas</h1>
+  <div id="iconos"></div>
+  <script>
+    // Cada ícono: nombre del archivo, tamaño, ¿fondo lleno? y tamaño del dibujo (1 = normal)
+    const ICONOS = [
+      { archivo: 'icon-192.png', tamano: 192, fondoLleno: false, escala: 1 },
+      { archivo: 'icon-512.png', tamano: 512, fondoLleno: false, escala: 1 },
+      // "maskable": Android lo recorta en círculo, por eso el dibujo va más chico y el fondo lleno
+      { archivo: 'icon-maskable-512.png', tamano: 512, fondoLleno: true, escala: 0.8 },
+      // iPhone: fondo lleno (el sistema redondea las esquinas)
+      { archivo: 'apple-touch-icon.png', tamano: 180, fondoLleno: true, escala: 1 }
+    ];
+    const FONDO = '#f6f4ef';
+
+    const logo = new Image();
+    logo.onload = () => ICONOS.forEach(dibujar);
+    logo.src = '../icons/logo.svg';
+
+    function dibujar({ archivo, tamano, fondoLleno, escala }) {
+      const lienzo = document.createElement('canvas');
+      lienzo.width = lienzo.height = tamano;
+      const c = lienzo.getContext('2d');
+      if (fondoLleno) { c.fillStyle = FONDO; c.fillRect(0, 0, tamano, tamano); }
+      const lado = tamano * escala;
+      c.drawImage(logo, (tamano - lado) / 2, (tamano - lado) / 2, lado, lado);
+      const caja = document.createElement('div');
+      caja.className = 'icono';
+      const enlace = document.createElement('a');
+      enlace.textContent = 'Descargar ' + archivo;
+      enlace.download = archivo;
+      enlace.href = lienzo.toDataURL('image/png');
+      caja.append(lienzo, enlace);
+      document.getElementById('iconos').append(caja);
+    }
+  </script>
+</body>
+</html>
