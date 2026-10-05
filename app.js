@@ -10,6 +10,7 @@
      5. Formulario de cita
      6. Recordatorio por WhatsApp
      7. Ajustes y plantilla del mensaje
+     8. Copia de seguridad, restaurar y borrar todo
     10. Inicio de la app
    ========================================================= */
 'use strict';
@@ -217,7 +218,7 @@ function mostrarError(texto) {
  * Ventana de confirmación. Devuelve una promesa que vale true si la
  * persona tocó el botón de confirmar y false si canceló.
  */
-function confirmar({ titulo, texto, botonSi, peligroso = true }) {
+function confirmar({ titulo, texto, botonSi, peligroso = true, soloAviso = false }) {
   return new Promise((resolver) => {
     const dialogo = $('dialogo-confirmar');
     const si = $('confirmar-si');
@@ -227,6 +228,7 @@ function confirmar({ titulo, texto, botonSi, peligroso = true }) {
     si.textContent = botonSi;
     no.textContent = t('cancelar');
     si.classList.toggle('no-peligroso', !peligroso);
+    no.hidden = soloAviso; // un aviso informativo solo tiene un botón
 
     const terminar = (respuesta) => {
       si.onclick = null;
@@ -239,7 +241,7 @@ function confirmar({ titulo, texto, botonSi, peligroso = true }) {
     no.onclick = () => terminar(false);
     dialogo.oncancel = (evento) => { evento.preventDefault(); terminar(false); };
     dialogo.showModal();
-    no.focus(); // el foco queda en "Cancelar" para evitar confirmar sin querer
+    (soloAviso ? si : no).focus(); // el foco queda en "Cancelar" para evitar confirmar sin querer
   });
 }
 
@@ -848,7 +850,16 @@ async function guardarAjustes(evento) {
   }
 }
 
-/** Muestra cuándo se descargó la última copia . */
+/* =========================================================
+   8. COPIA DE SEGURIDAD, RESTAURAR Y BORRAR TODO
+   La copia es un archivo .json con todas las citas y los ajustes.
+   ========================================================= */
+const COPIA_APP = 'tucankit-citas';
+const COPIA_VERSION = 1;
+const DIAS_AVISO_COPIA = 7;
+let avisoCopiaCerrado = false; // "Ahora no" lo oculta hasta que se vuelva a abrir la app
+
+/** Muestra cuándo se descargó la última copia. */
 function mostrarUltimaCopia() {
   const ultima = estado.ajustes.ultimaCopia;
   $('copia-ultima').textContent = ultima
@@ -856,9 +867,161 @@ function mostrarUltimaCopia() {
     : t('copiaNunca');
 }
 
+/** Genera y descarga el archivo de copia. */
+async function descargarCopia() {
+  const copia = {
+    app: COPIA_APP,
+    version: COPIA_VERSION,
+    creada: Date.now(),
+    citas: ordenarCitas(estado.citas),
+    ajustes: estado.ajustes
+  };
+  const archivo = new Blob([JSON.stringify(copia, null, 2)], { type: 'application/json' });
+  const enlace = document.createElement('a');
+  enlace.href = URL.createObjectURL(archivo);
+  enlace.download = `tucankit-citas-copia-${hoyTexto()}.json`;
+  document.body.append(enlace);
+  enlace.click();
+  enlace.remove();
+  setTimeout(() => URL.revokeObjectURL(enlace.href), 10000);
+
+  // Recordar cuándo se hizo, para el aviso de los 7 días
+  estado.ajustes = { ...estado.ajustes, ultimaCopia: Date.now() };
+  try { await guardarAjustesBD(estado.ajustes); } catch (error) { console.error(error); }
+  mostrarUltimaCopia();
+  revisarAvisos();
+  avisar(t('copiaDescargada'));
+}
+
+/** Devuelve el texto si es un texto; si no, el valor por defecto. */
+const textoO = (valor, porDefecto = '') => (typeof valor === 'string' ? valor : porDefecto);
+/** Devuelve el número si es un número válido; si no, null. */
+const numeroO = (valor) => (typeof valor === 'number' && Number.isFinite(valor) ? valor : null);
+
+/**
+ * Revisa que un archivo de copia tenga el formato correcto.
+ * Devuelve { citas, ajustes, creada } limpios, o lanza un error si algo está mal.
+ * Solo se copian los campos conocidos: lo demás se ignora.
+ */
+function validarCopia(datos) {
+  if (!datos || typeof datos !== 'object') throw new Error('No es un objeto');
+  if (datos.app !== COPIA_APP) throw new Error('No es una copia de Tucankit Citas');
+  if (!Number.isInteger(datos.version) || datos.version < 1 || datos.version > COPIA_VERSION) {
+    throw new Error('Versión de copia desconocida');
+  }
+  if (!Array.isArray(datos.citas)) throw new Error('Faltan las citas');
+
+  const citas = datos.citas.map((c, posicion) => {
+    const valida = c && typeof c === 'object'
+      && typeof c.id === 'string' && c.id
+      && typeof c.nombre === 'string' && c.nombre.trim()
+      && typeof c.telefono === 'string' && telefonoValido(c.telefono)
+      && typeof c.fecha === 'string' && FORMATO_FECHA.test(c.fecha)
+      && typeof c.hora === 'string' && FORMATO_HORA.test(c.hora);
+    if (!valida) throw new Error(`Cita ${posicion + 1} con datos incompletos`);
+    return {
+      id: c.id,
+      nombre: c.nombre.trim(),
+      telefono: c.telefono,
+      fecha: c.fecha,
+      hora: c.hora,
+      servicio: textoO(c.servicio),
+      nota: textoO(c.nota),
+      recordatorioEnviado: c.recordatorioEnviado === true,
+      recordatorioFecha: c.recordatorioEnviado === true ? numeroO(c.recordatorioFecha) || Date.now() : null,
+      creada: numeroO(c.creada) || Date.now(),
+      modificada: numeroO(c.modificada) || Date.now()
+    };
+  });
+
+  const a = datos.ajustes && typeof datos.ajustes === 'object' ? datos.ajustes : {};
+  const base = ajustesPorDefecto();
+  const ajustes = {
+    ...base,
+    negocio: textoO(a.negocio),
+    direccion: textoO(a.direccion),
+    codigoPais: /^\d{1,4}$/.test(textoO(a.codigoPais)) ? a.codigoPais : base.codigoPais,
+    plantilla: textoO(a.plantilla).trim() || base.plantilla,
+    primerUso: numeroO(a.primerUso) || Date.now(),
+    ayudaIphoneOculta: a.ayudaIphoneOculta === true,
+    ultimaCopia: Date.now() // quien restaura, tiene la copia en la mano
+  };
+
+  return { citas, ajustes, creada: numeroO(datos.creada) };
+}
+
+/** Se ejecuta cuando la persona elige un archivo para restaurar. */
+async function restaurarCopia(evento) {
+  const entrada = evento.target;
+  const archivo = entrada.files && entrada.files[0];
+  entrada.value = ''; // permite elegir el mismo archivo otra vez
+  if (!archivo) return;
+
+  let copia;
+  try {
+    copia = validarCopia(JSON.parse(await archivo.text()));
+  } catch (error) {
+    console.warn('Copia rechazada:', error.message);
+    await confirmar({ titulo: t('restaurarCopia'), texto: t('errorArchivo'), botonSi: t('entendido'), peligroso: false, soloAviso: true });
+    return;
+  }
+
+  const seguro = await confirmar({
+    titulo: t('confirmarRestaurarTitulo'),
+    texto: t('confirmarRestaurarTexto', {
+      momento: copia.creada ? momentoAmigable(copia.creada) : '?',
+      cantidad: copia.citas.length,
+      actuales: estado.citas.length
+    }),
+    botonSi: t('siRestaurar')
+  });
+  if (!seguro) return;
+
+  try {
+    await reemplazarTodoBD(copia.citas, copia.ajustes);
+    estado.citas = copia.citas;
+    estado.ajustes = copia.ajustes;
+    cargarFormularioAjustes();
+    revisarAvisos();
+    avisar(t('copiaRestaurada'));
+  } catch (error) {
+    console.error(error);
+    mostrarError(t('errorGuardar'));
+  }
+}
+
+/** Borra todas las citas y ajustes (pide confirmación antes). */
+async function borrarTodo() {
+  const seguro = await confirmar({
+    titulo: t('confirmarBorrarTitulo'),
+    texto: t('confirmarBorrarTexto', { cantidad: estado.citas.length }),
+    botonSi: t('siBorrar')
+  });
+  if (!seguro) return;
+  try {
+    const nuevos = { ...ajustesPorDefecto(), primerUso: Date.now() };
+    await reemplazarTodoBD([], nuevos);
+    estado.citas = [];
+    estado.ajustes = nuevos;
+    cargarFormularioAjustes();
+    revisarAvisos();
+    avisar(t('todoBorrado'));
+  } catch (error) {
+    console.error(error);
+    mostrarError(t('errorGuardar'));
+  }
+}
+
 /** Muestra u oculta los avisos de arriba según la situación. */
 function revisarAvisos() {
-  $('aviso-negocio').hidden = Boolean(estado.ajustes.negocio);
+  const a = estado.ajustes;
+  $('aviso-negocio').hidden = Boolean(a.negocio);
+
+  // Aviso de copia: si hay citas y pasaron más de 7 días desde la última copia
+  // (o desde el primer uso, si nunca se descargó una)
+  const referencia = a.ultimaCopia || a.primerUso;
+  const dias = referencia ? (Date.now() - referencia) / 86400000 : 0;
+  $('aviso-copia').hidden = avisoCopiaCerrado || !estado.citas.length || dias <= DIAS_AVISO_COPIA;
 }
 
 /* =========================================================
@@ -886,6 +1049,14 @@ function conectarEventos() {
   $('aviso-negocio-ir').addEventListener('click', () => mostrarVista('ajustes'));
   $('form-ajustes').addEventListener('submit', guardarAjustes);
   ['aj-negocio', 'aj-direccion', 'aj-plantilla'].forEach((id) => $(id).addEventListener('input', actualizarVistaPrevia));
+  // Copia de seguridad y borrar todo
+  $('btn-descargar').addEventListener('click', descargarCopia);
+  $('aviso-copia-descargar').addEventListener('click', descargarCopia);
+  $('aviso-copia-cerrar').addEventListener('click', () => { avisoCopiaCerrado = true; revisarAvisos(); });
+  $('btn-restaurar').addEventListener('click', () => $('archivo-restaurar').click());
+  $('archivo-restaurar').addEventListener('change', restaurarCopia);
+  $('btn-borrar-todo').addEventListener('click', borrarTodo);
+
   $('btn-plantilla-defecto').addEventListener('click', () => {
     $('aj-plantilla').value = t('plantillaPorDefecto');
     actualizarVistaPrevia();
