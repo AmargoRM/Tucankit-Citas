@@ -173,6 +173,18 @@ const TEXTOS = {
     campoNotaCliente: 'Nota del cliente',
     ejemploNotaCliente: 'Talla, preferencias, alergias…',
 
+    // Varios clientes
+    quitar: 'Quitar',
+    agregarOtroCliente: '+ Agregar otro cliente (opcional)',
+    guardadosVarios: 'Se crearon {cantidad} recordatorios (uno por cliente).',
+    seleccionarVarios: 'Seleccionar varios',
+    marcarTodos: 'Marcar todos',
+    desmarcarTodos: 'Desmarcar todos',
+    seleccionCuenta: '{cantidad} marcados',
+    seleccionMensaje: 'Mensaje en fila',
+    seleccionRecordatorio: 'Recordatorio',
+    grupoElegirClientes: '✋ Elegir clientes',
+
     // Grupos (envío en fila)
     grupoTitulo: 'Mensaje a un grupo',
     grupoExplicacion: 'WhatsApp no permite enviar a muchas personas a la vez sin pagar. La app le prepara cada mensaje y usted toca «enviar» en cada uno.',
@@ -538,7 +550,7 @@ function localesPorDefecto() {
     avisoDireccionOculto: false,
     ultimaCopia: null,
     primerUso: Date.now(),
-    envioGrupo: { grupo: '', mensaje: t('grupoMensajeInicial'), enviados: [] },
+    envioGrupo: { grupo: '', mensaje: t('grupoMensajeInicial'), enviados: [], elegidos: [] },
     // Google Drive (propio de este dispositivo; nunca se sincroniza)
     driveActivo: false,
     driveToken: '',        // permiso temporal de Google (~1 hora)
@@ -612,7 +624,8 @@ function normalizarLocales(a = {}) {
     r.envioGrupo = {
       grupo: typeof g.grupo === 'string' ? g.grupo : '',
       mensaje: typeof g.mensaje === 'string' ? g.mensaje : r.envioGrupo.mensaje,
-      enviados: Array.isArray(g.enviados) ? g.enviados.filter((x) => typeof x === 'string') : []
+      enviados: Array.isArray(g.enviados) ? g.enviados.filter((x) => typeof x === 'string') : [],
+      elegidos: Array.isArray(g.elegidos) ? g.elegidos.filter((x) => typeof x === 'string') : []
     };
   }
   return r;
@@ -817,7 +830,10 @@ const estado = {
   // Formulario de recordatorio
   editandoRecordatorioId: null,
   recTipo: 'cita',
-  recClienteId: null,
+  recClienteIds: [],      // clientes elegidos (en un recordatorio nuevo pueden ser varios)
+  seleccionando: false,   // modo "Seleccionar varios" en Clientes
+  seleccionados: [],
+  clientesVisibles: [],
   recClienteNuevo: false,
   // Formulario de cliente
   editandoClienteId: null,
@@ -1091,11 +1107,14 @@ async function eliminarRecordatorio(r) {
    6. FORMULARIO DE RECORDATORIO
    ========================================================= */
 
-/** Abre el formulario. Sin recordatorio = nuevo. Con clienteId = cliente ya elegido. */
-function abrirFormularioRecordatorio(r = null, clienteId = null) {
+/**
+ * Abre el formulario. Sin recordatorio = nuevo.
+ * "clientes" = id o lista de ids de clientes ya elegidos (para crear uno a cada uno).
+ */
+function abrirFormularioRecordatorio(r = null, clientes = null) {
   estado.editandoRecordatorioId = r ? r.id : null;
   estado.recTipo = r ? r.tipo : (estado.filtroTipo !== 'todos' ? estado.filtroTipo : 'cita');
-  estado.recClienteId = r ? r.clienteId : clienteId;
+  estado.recClienteIds = r ? [r.clienteId] : [].concat(clientes || []);
   estado.recClienteNuevo = false;
   $('rec-titulo').textContent = t(r ? 'tituloEditarRecordatorio' : 'tituloNuevoRecordatorio');
 
@@ -1147,17 +1166,35 @@ function aplicarTipoAlFormulario() {
   $('rec-monto-etiqueta').textContent = t('campoMonto', { moneda: estado.compartidos.moneda });
 }
 
-/** Parte del formulario que elige el cliente. */
+/**
+ * Parte del formulario que elige los clientes.
+ * Recordatorio nuevo: se pueden elegir varios (se crea uno para cada cliente).
+ * Al editar: un solo cliente (con "Cambiar").
+ */
 function dibujarClienteFormulario() {
-  const cliente = estado.recClienteId ? clientePorId(estado.recClienteId) : null;
-  $('rec-cliente-elegido').hidden = !cliente;
-  $('rec-cliente-busqueda').hidden = Boolean(cliente) || estado.recClienteNuevo;
+  const editando = Boolean(estado.editandoRecordatorioId);
+  const elegidos = estado.recClienteIds.map(clientePorId).filter(Boolean);
+  const contenedor = $('rec-clientes-elegidos');
+  contenedor.replaceChildren();
+  elegidos.forEach((c) => {
+    const fila = crear('div', 'cliente-elegido');
+    const texto = crear('div');
+    texto.append(crear('strong', '', c.nombre), crear('small', '', formatearTelefono(c.telefono, estado.compartidos.codigoPais)));
+    const quitar = crear('button', 'enlace', t(editando ? 'cambiar' : 'quitar'));
+    quitar.type = 'button';
+    quitar.addEventListener('click', () => {
+      estado.recClienteIds = estado.recClienteIds.filter((id) => id !== c.id);
+      dibujarClienteFormulario();
+      $('rec-cliente-buscar').focus();
+    });
+    fila.append(texto, quitar);
+    contenedor.append(fila);
+  });
+  const puedeAgregar = !estado.recClienteNuevo && (!editando || !elegidos.length);
+  $('rec-cliente-busqueda').hidden = !puedeAgregar;
+  $('rec-cliente-buscar').placeholder = t(elegidos.length ? 'agregarOtroCliente' : 'buscarOCrearCliente');
   $('rec-nuevo').hidden = !estado.recClienteNuevo;
-  if (cliente) {
-    $('rec-cliente-nombre').textContent = cliente.nombre;
-    $('rec-cliente-telefono').textContent = formatearTelefono(cliente.telefono, estado.compartidos.codigoPais);
-  }
-  if (!cliente && !estado.recClienteNuevo) dibujarSugerencias();
+  if (puedeAgregar) dibujarSugerencias();
   if (estado.recClienteNuevo) actualizarNumeroFinal('rec-telefono', 'rec-numero-final');
 }
 
@@ -1177,6 +1214,7 @@ function dibujarSugerencias() {
   const contenedor = $('rec-sugerencias');
   contenedor.replaceChildren();
   const encontrados = clientesActivos()
+    .filter((c) => !estado.recClienteIds.includes(c.id))
     .filter((c) => clienteCoincide(c, texto))
     .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
     .slice(0, 6);
@@ -1184,7 +1222,12 @@ function dibujarSugerencias() {
     const b = crear('button', 'sugerencia');
     b.type = 'button';
     b.append(crear('strong', '', c.nombre), crear('small', '', formatearTelefono(c.telefono, estado.compartidos.codigoPais)));
-    b.addEventListener('click', () => { estado.recClienteId = c.id; marcarError('cliente', ''); dibujarClienteFormulario(); });
+    b.addEventListener('click', () => {
+      estado.recClienteIds = [...estado.recClienteIds, c.id];
+      $('rec-cliente-buscar').value = '';
+      marcarError('cliente', '');
+      dibujarClienteFormulario();
+    });
     contenedor.append(b);
   });
   const nuevo = crear('button', 'sugerencia sugerencia-nueva', texto ? t('crearClienteCon', { texto }) : t('crearClienteNuevo'));
@@ -1237,7 +1280,7 @@ async function guardarFormularioRecordatorio(evento) {
     if (!errores.recnombre && !errores.rectelefono) {
       clienteNuevo = { id: nuevoId(), nombre, telefono, nota: '', etiquetaIds: [], creadoEn: Date.now() };
     }
-  } else if (!estado.recClienteId) {
+  } else if (!estado.recClienteIds.length) {
     errores.cliente = t('errorCliente');
   }
 
@@ -1245,10 +1288,10 @@ async function guardarFormularioRecordatorio(evento) {
   if (Object.values(errores).some(Boolean)) return;
 
   const anterior = estado.recordatorios.find((x) => x.id === estado.editandoRecordatorioId);
-  const r = {
-    ...(anterior || { id: nuevoId(), enviado: false, enviadoEn: null, respuesta: '', respuestaEn: null, creadoEn: Date.now() }),
+  const idsClientes = [...estado.recClienteIds, ...(clienteNuevo ? [clienteNuevo.id] : [])];
+  const base = {
+    ...(anterior || { enviado: false, enviadoEn: null, respuesta: '', respuestaEn: null, creadoEn: Date.now() }),
     tipo,
-    clienteId: clienteNuevo ? clienteNuevo.id : estado.recClienteId,
     fecha,
     hora,
     detalle: $('rec-detalle').value.trim(),
@@ -1258,17 +1301,21 @@ async function guardarFormularioRecordatorio(evento) {
   };
   // Si cambió el día o la hora, el recordatorio enviado ya no vale
   if (anterior && (anterior.fecha !== fecha || anterior.hora !== hora)) {
-    r.enviado = false;
-    r.enviadoEn = null;
+    base.enviado = false;
+    base.enviadoEn = null;
   }
+  // Uno por cliente: al editar se conserva el mismo; si es nuevo, cada uno con su id
+  const recordatorios = anterior
+    ? [{ ...base, id: anterior.id, clienteId: idsClientes[0] }]
+    : idsClientes.map((clienteId) => ({ ...base, id: nuevoId(), clienteId }));
 
   try {
-    const cambios = { recordatorios: [r] };
+    const cambios = { recordatorios };
     if (clienteNuevo) cambios.clientes = [clienteNuevo];
     await guardarCambios(cambios);
     $('dialogo-recordatorio').close();
     redibujar();
-    avisar(t('guardado'));
+    avisar(recordatorios.length > 1 ? t('guardadosVarios', { cantidad: recordatorios.length }) : t('guardado'));
   } catch (error) {
     console.error(error);
     mostrarError(t('errorGuardar'));
@@ -1324,14 +1371,59 @@ function dibujarClientes() {
   clientes.forEach((c) => {
     const fila = crear('button', 'cliente-fila');
     fila.type = 'button';
+    if (estado.seleccionando) {
+      const marcado = estado.seleccionados.includes(c.id);
+      fila.setAttribute('aria-pressed', String(marcado));
+      fila.append(crear('span', 'marca-seleccion', marcado ? '✓' : ''));
+    }
     const texto = crear('div', 'cliente-fila-texto');
     texto.append(crear('strong', '', c.nombre), crear('small', '', formatearTelefono(c.telefono, estado.compartidos.codigoPais)), chipsEtiquetas(c));
     fila.append(texto);
     const proximos = proximosDeCliente(c.id).length;
-    if (proximos) fila.append(crear('span', 'contador-pendientes', t('pendientesCliente', { cantidad: proximos })));
-    fila.addEventListener('click', () => abrirFicha(c.id));
+    if (proximos && !estado.seleccionando) fila.append(crear('span', 'contador-pendientes', t('pendientesCliente', { cantidad: proximos })));
+    fila.addEventListener('click', () => (estado.seleccionando ? alternarSeleccion(c.id) : abrirFicha(c.id)));
     lista.append(fila);
   });
+  estado.clientesVisibles = clientes.map((c) => c.id);
+  dibujarBarraSeleccion();
+}
+
+/** Activa o desactiva el modo "Seleccionar varios". */
+function modoSeleccion(activo) {
+  estado.seleccionando = activo;
+  estado.seleccionados = [];
+  dibujarClientes();
+}
+
+function alternarSeleccion(id) {
+  estado.seleccionados = estado.seleccionados.includes(id)
+    ? estado.seleccionados.filter((x) => x !== id)
+    : [...estado.seleccionados, id];
+  dibujarClientes();
+}
+
+/** Barra de acciones para los clientes marcados. */
+function dibujarBarraSeleccion() {
+  const visible = estado.vista === 'clientes' && estado.seleccionando;
+  $('barra-seleccion').hidden = !visible;
+  $('btn-seleccionar').textContent = t(estado.seleccionando ? 'cancelar' : 'seleccionarVarios');
+  $('btn-nueva').hidden = visible || !['agenda', 'clientes'].includes(estado.vista);
+  if (!visible) return;
+  const n = estado.seleccionados.length;
+  $('seleccion-cuenta').textContent = t('seleccionCuenta', { cantidad: n });
+  const todosMarcados = estado.clientesVisibles.length && estado.clientesVisibles.every((id) => estado.seleccionados.includes(id));
+  $('seleccion-todos').textContent = t(todosMarcados ? 'desmarcarTodos' : 'marcarTodos');
+  $('seleccion-mensaje').disabled = !n;
+  $('seleccion-recordatorio').disabled = !n;
+}
+
+/** Mensaje en fila para los clientes marcados (va a Grupos con ellos elegidos). */
+async function mensajeASeleccionados() {
+  const g = estado.locales.envioGrupo;
+  await guardarLocales({ envioGrupo: { ...g, grupo: 'manual', elegidos: [...estado.seleccionados], enviados: [] } });
+  estado.seleccionando = false;
+  estado.seleccionados = [];
+  mostrarVista('grupos');
 }
 
 /** Abre la ficha de un cliente con su historial. */
@@ -1653,11 +1745,12 @@ async function marcarRespuesta(r, respuesta) {
    El avance se guarda en este dispositivo.
    ========================================================= */
 
-/** Clientes del grupo elegido ("*" = todos; si no, un id de etiqueta). */
+/** Clientes del grupo elegido ("*" = todos; "manual" = elegidos uno por uno; si no, un id de etiqueta). */
 function clientesDelGrupo(grupo) {
   if (!grupo) return [];
+  const elegidos = estado.locales.envioGrupo.elegidos || [];
   return clientesActivos()
-    .filter((c) => grupo === '*' || (c.etiquetaIds || []).includes(grupo))
+    .filter((c) => grupo === '*' || (grupo === 'manual' ? elegidos.includes(c.id) : (c.etiquetaIds || []).includes(grupo)))
     .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
 }
 
@@ -1673,13 +1766,14 @@ function dibujarGrupos() {
   // 1. Elegir grupo
   const elegir = $('grupo-etiquetas');
   elegir.replaceChildren();
-  [{ id: '*', nombre: t('grupoTodos') }, ...etiquetasActivas()].forEach((e) => {
-    const b = crear('button', 'ficha', e.id === '*' ? e.nombre : `🏷️ ${e.nombre}`);
+  [{ id: 'manual', nombre: t('grupoElegirClientes') }, { id: '*', nombre: t('grupoTodos') }, ...etiquetasActivas()].forEach((e) => {
+    const b = crear('button', 'ficha', e.id === '*' || e.id === 'manual' ? e.nombre : `🏷️ ${e.nombre}`);
     b.type = 'button';
     b.setAttribute('aria-pressed', String(g.grupo === e.id));
     b.addEventListener('click', () => cambiarGrupo(e.id));
     elegir.append(b);
   });
+  dibujarElegiblesGrupo();
 
   // 2. Mensaje y vista previa
   if (document.activeElement !== $('grupo-mensaje')) $('grupo-mensaje').value = g.mensaje;
@@ -1730,6 +1824,35 @@ async function cambiarGrupo(grupo) {
   dibujarGrupos();
 }
 
+/** Lista para marcar clientes uno por uno (cuando el grupo es "Elegir clientes"). */
+function dibujarElegiblesGrupo() {
+  const g = estado.locales.envioGrupo;
+  $('grupo-elegir').hidden = g.grupo !== 'manual';
+  if (g.grupo !== 'manual') return;
+  const elegidos = g.elegidos || [];
+  const lista = $('grupo-elegibles');
+  lista.replaceChildren();
+  clientesActivos()
+    .filter((c) => clienteCoincide(c, $('grupo-buscar').value))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+    .forEach((c) => {
+      const fila = crear('button', 'cliente-fila');
+      fila.type = 'button';
+      const marcado = elegidos.includes(c.id);
+      fila.setAttribute('aria-pressed', String(marcado));
+      fila.append(crear('span', 'marca-seleccion', marcado ? '✓' : ''));
+      const texto = crear('div', 'cliente-fila-texto');
+      texto.append(crear('strong', '', c.nombre), crear('small', '', formatearTelefono(c.telefono, estado.compartidos.codigoPais)));
+      fila.append(texto);
+      fila.addEventListener('click', async () => {
+        const nuevos = marcado ? elegidos.filter((x) => x !== c.id) : [...elegidos, c.id];
+        await guardarLocales({ envioGrupo: { ...estado.locales.envioGrupo, elegidos: nuevos } });
+        dibujarGrupos();
+      });
+      lista.append(fila);
+    });
+}
+
 /** Envía al cliente indicado (un toque = un mensaje) y lo marca como hecho. */
 function enviarAGrupo(cliente) {
   if (!estado.locales.envioGrupo.mensaje.trim()) { avisar(t('grupoErrorMensaje')); return; }
@@ -1760,6 +1883,8 @@ function mostrarVista(vista) {
     b.setAttribute('aria-current', activa ? 'page' : 'false');
   });
   $('btn-ajustes').hidden = vista === 'ajustes';
+  if (vista !== 'clientes') { estado.seleccionando = false; estado.seleccionados = []; }
+  $('barra-seleccion').hidden = true;
   const flotante = $('btn-nueva');
   flotante.hidden = !['agenda', 'clientes'].includes(vista);
   flotante.textContent = t(vista === 'clientes' ? 'nuevoCliente' : 'nuevoRecordatorio');
@@ -2974,12 +3099,20 @@ function conectarEventos() {
   $('form-recordatorio').addEventListener('submit', guardarFormularioRecordatorio);
   $('rec-cancelar').addEventListener('click', () => $('dialogo-recordatorio').close());
   $('rec-cliente-buscar').addEventListener('input', dibujarSugerencias);
-  $('rec-cliente-cambiar').addEventListener('click', () => { estado.recClienteId = null; dibujarClienteFormulario(); $('rec-cliente-buscar').focus(); });
   $('rec-telefono').addEventListener('input', () => actualizarNumeroFinal('rec-telefono', 'rec-numero-final'));
 
   // Clientes
   $('buscar-cliente').addEventListener('input', (e) => { estado.busqueda = e.target.value; dibujarClientes(); });
   $('btn-volver-clientes').addEventListener('click', () => mostrarVista('clientes'));
+  $('btn-seleccionar').addEventListener('click', () => modoSeleccion(!estado.seleccionando));
+  $('seleccion-todos').addEventListener('click', () => {
+    const todos = estado.clientesVisibles.every((id) => estado.seleccionados.includes(id));
+    estado.seleccionados = todos ? [] : [...new Set([...estado.seleccionados, ...estado.clientesVisibles])];
+    dibujarClientes();
+  });
+  $('seleccion-mensaje').addEventListener('click', mensajeASeleccionados);
+  $('seleccion-recordatorio').addEventListener('click', () => abrirFormularioRecordatorio(null, [...estado.seleccionados]));
+  $('grupo-buscar').addEventListener('input', dibujarElegiblesGrupo);
   $('ficha-recordatorio').addEventListener('click', () => abrirFormularioRecordatorio(null, estado.clienteAbierto));
   $('ficha-whatsapp').addEventListener('click', () => { const c = clientePorId(estado.clienteAbierto); if (c) abrirWhatsApp(c.telefono, ''); });
   $('ficha-editar').addEventListener('click', () => abrirFormularioCliente(clientePorId(estado.clienteAbierto)));

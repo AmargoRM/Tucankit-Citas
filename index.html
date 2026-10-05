@@ -124,8 +124,22 @@
         <input id="buscar-cliente" type="search" autocomplete="off" data-t-placeholder="buscarCliente">
       </label>
       <div id="filtro-etiquetas" class="fichas-filtro" role="group"></div>
-      <h2 id="titulo-clientes" class="titulo-lista"></h2>
+      <div class="fila-titulo">
+        <h2 id="titulo-clientes" class="titulo-lista"></h2>
+        <button id="btn-seleccionar" class="enlace" type="button" data-t="seleccionarVarios"></button>
+      </div>
       <div id="lista-clientes" class="lista lista-compacta"></div>
+      <!-- Barra de acciones para los clientes marcados -->
+      <div id="barra-seleccion" class="barra-seleccion" hidden>
+        <div class="barra-seleccion-fila">
+          <strong id="seleccion-cuenta"></strong>
+          <button id="seleccion-todos" class="enlace" type="button" data-t="marcarTodos"></button>
+        </div>
+        <div class="barra-seleccion-fila">
+          <button id="seleccion-mensaje" class="boton boton-accion boton-chico" type="button" data-t="seleccionMensaje"></button>
+          <button id="seleccion-recordatorio" class="boton boton-secundario boton-chico" type="button" data-t="seleccionRecordatorio"></button>
+        </div>
+      </div>
     </section>
 
     <!-- ===== FICHA DE UN CLIENTE con su historial ===== -->
@@ -157,6 +171,10 @@
 
         <h3 data-t="grupoPaso1"></h3>
         <div id="grupo-etiquetas" class="fichas-filtro" role="group"></div>
+        <div id="grupo-elegir" class="grupo-elegir" hidden>
+          <input id="grupo-buscar" type="search" autocomplete="off" data-t-placeholder="buscarCliente">
+          <div id="grupo-elegibles" class="lista lista-compacta"></div>
+        </div>
 
         <h3 data-t="grupoPaso2"></h3>
         <label class="campo">
@@ -410,13 +428,8 @@
       <!-- Cliente: elegido, buscador o cliente nuevo -->
       <div class="campo" id="campo-cliente">
         <span data-t="campoCliente"></span>
-        <div id="rec-cliente-elegido" class="cliente-elegido" hidden>
-          <div>
-            <strong id="rec-cliente-nombre"></strong>
-            <small id="rec-cliente-telefono"></small>
-          </div>
-          <button id="rec-cliente-cambiar" class="enlace" type="button" data-t="cambiar"></button>
-        </div>
+        <!-- Clientes elegidos (en un recordatorio nuevo se pueden elegir varios) -->
+        <div id="rec-clientes-elegidos" class="clientes-elegidos"></div>
         <div id="rec-cliente-busqueda">
           <input id="rec-cliente-buscar" type="search" autocomplete="off" data-t-placeholder="buscarOCrearCliente">
           <div id="rec-sugerencias" class="sugerencias"></div>

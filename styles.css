@@ -742,3 +742,60 @@ button.cita-nombre {
 .fichas-productos .ficha { min-height: 36px; font-size: .85rem; }
 .producto-precio { color: var(--texto-suave); font-weight: 600; }
 .enlace-fila { flex: 1; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+
+/* Elegir varios clientes */
+.clientes-elegidos { display: flex; flex-direction: column; gap: 6px; }
+.clientes-elegidos:empty { display: none; }
+.clientes-elegidos + #rec-cliente-busqueda { margin-top: 6px; }
+.fila-titulo { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cliente-fila .marca-seleccion {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--borde);
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  color: #fff;
+}
+.cliente-fila[aria-pressed="true"] { border-color: var(--accion); background: var(--accion-fondo); }
+.cliente-fila[aria-pressed="true"] .marca-seleccion { background: var(--accion); border-color: var(--accion); }
+.barra-seleccion {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(70px + env(safe-area-inset-bottom));
+  z-index: 18;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radio);
+  background: var(--negro);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .3);
+}
+.barra-seleccion .enlace { color: var(--acento-claro); }
+.barra-seleccion-fila { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.barra-seleccion-fila .boton { flex: 1; }
+.grupo-elegir { margin-top: 10px; }
+.grupo-elegir input {
+  width: 100%;
+  min-height: 44px;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border: 1.5px solid var(--borde);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 16px;
+}
+#grupo-elegibles { max-height: 320px; overflow-y: auto; }
+@media (min-width: 760px) {
+  .barra-seleccion { left: 50%; right: auto; width: 680px; transform: translateX(-50%); bottom: 80px; }
+}
+/* Con casilla de selección: el texto ocupa el espacio y queda junto a la casilla */
+.cliente-fila .cliente-fila-texto { flex: 1; }
+.cliente-fila .marca-seleccion + .cliente-fila-texto { margin-left: 4px; }
+/* Si la barra de selección está a la vista, el mensaje corto sube para no taparla */
+body:has(#barra-seleccion:not([hidden])) .toast { bottom: calc(200px + env(safe-area-inset-bottom)); }
