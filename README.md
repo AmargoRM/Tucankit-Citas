@@ -7,13 +7,22 @@ terapeutas, talleres, tiendas, personal shoppers) que envían recordatorios por
 La app **no envía mensajes sola**: arma el mensaje y abre WhatsApp con el texto ya escrito
 (enlace oficial). La persona solo toca «enviar», un mensaje por toque.
 
-- **Clientes** con nota, etiquetas (VIP, Debe…) e historial.
+- **Clientes** con nota, etiquetas (VIP, Debe…) e historial. Se pueden **marcar varios** para un
+  mensaje en fila o un recordatorio para todos.
+- **Cualquier país:** se elige de una lista (código telefónico, moneda y forma de escribir montos).
+- **Servicios y productos:** lista preestablecida (con precio opcional) para elegir con un toque.
+- **Horario de atención:** armado con clics; se puede incluir en los mensajes con `{horario}` y
+  la app avisa si una cita cae fuera de horario.
 - **Tipos de recordatorio:** cita, entrega, cobro (monto y forma de pago), seguimiento y «ya llegó».
 - **Mensajes** por tipo, armables con clics (saludo, tú/usted, confirmar, dirección, despedida),
   firma opcional y enlaces para que el cliente responda con un toque.
 - **Estados de respuesta:** confirmó, canceló, pagó, respondió.
 - **Grupos:** mensaje a todos los clientes de una etiqueta, en fila (un toque por mensaje).
-- **Varios dispositivos sin servidor:** por código QR (sin internet) o con el **Google Drive del propio usuario**.
+- **Varios dispositivos sin servidor:** por código QR (sin internet; funciona con el escáner de la app
+  o con la cámara normal del celular) o con el **Google Drive del propio usuario**.
+- **Aviso de pendientes:** al abrir la app muestra cuántos recordatorios faltan enviar (hoy y mañana)
+  y pone el número en el ícono de la app instalada, donde el sistema lo permite.
+  Sin servidor no se puede avisar con la app cerrada.
 - Funciona sin internet y se instala en el celular como una app.
 - Sin frameworks, sin npm, sin compilación, sin servidor: HTML, CSS y JavaScript puro.
 
@@ -103,7 +112,7 @@ la instalación, la cámara y Google Drive **solo funcionan en `localhost` o con
 Cada cambio en archivos de la app sube en 1 el número de `sw.js`:
 
 ```js
-const VERSION = 9;   // cambiar a 10, luego 11, etc.
+const VERSION = 15;   // cambiar a 16, luego 17, etc.
 ```
 
 Si no se sube, los teléfonos que ya tienen la app siguen viendo la versión vieja.
