@@ -184,6 +184,12 @@
         <h2 data-t="ajustesTitulo"></h2>
       </div>
 
+      <!-- Barra fija arriba: el botón Guardar siempre a la vista -->
+      <div id="barra-guardar" class="barra-guardar">
+        <span id="ajustes-estado-guardado" class="barra-guardar-texto"></span>
+        <button class="boton boton-accion" type="submit" form="form-ajustes" data-t="guardar"></button>
+      </div>
+
       <form id="form-ajustes" novalidate>
         <div class="tarjeta">
           <h3 data-t="ajustesNegocio"></h3>
@@ -200,6 +206,11 @@
             <span data-t="campoDireccion"></span>
             <input id="aj-direccion" type="text" maxlength="160" autocomplete="street-address" data-t-placeholder="ejemploDireccion">
           </label>
+          <label class="campo">
+            <span data-t="campoPais"></span>
+            <select id="aj-pais"></select>
+            <small class="ayuda" data-t="ayudaPais"></small>
+          </label>
           <div class="fila">
             <label class="campo" id="campo-codigo">
               <span data-t="campoCodigoPais"></span>
@@ -211,7 +222,6 @@
               <input id="aj-moneda" type="text" maxlength="4" autocomplete="off">
             </label>
           </div>
-          <p class="ayuda" data-t="ayudaCodigoPais"></p>
           <label class="campo">
             <span data-t="campoPagoHabitual"></span>
             <input id="aj-pago" type="text" maxlength="120" autocomplete="off" data-t-placeholder="ejemploPago">
@@ -301,18 +311,15 @@
           </div>
         </div>
 
-        <button class="boton boton-accion boton-ancho boton-guardar-ajustes" type="submit" data-t="guardarAjustes"></button>
+        <div class="tarjeta">
+          <h3 data-t="ajustesDispositivo"></h3>
+          <label class="campo">
+            <span data-t="campoNombreDispositivo"></span>
+            <input id="aj-dispositivo" type="text" maxlength="60" autocomplete="off" data-t-placeholder="ejemploNombreDispositivo">
+            <small class="ayuda" data-t="ayudaNombreDispositivo"></small>
+          </label>
+        </div>
       </form>
-
-      <div class="tarjeta">
-        <h3 data-t="ajustesDispositivo"></h3>
-        <label class="campo">
-          <span data-t="campoNombreDispositivo"></span>
-          <input id="aj-dispositivo" type="text" maxlength="60" autocomplete="off" data-t-placeholder="ejemploNombreDispositivo">
-          <small class="ayuda" data-t="ayudaNombreDispositivo"></small>
-        </label>
-        <button id="btn-guardar-dispositivo" class="boton boton-secundario boton-chico" type="button" data-t="guardar"></button>
-      </div>
 
       <div class="tarjeta">
         <h3 data-t="qrTitulo"></h3>

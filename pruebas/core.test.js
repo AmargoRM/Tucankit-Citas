@@ -36,10 +36,26 @@ async function prueba(nombre, fn) {
     assert.equal(C.sumarDias('2026-12-31', 1), '2027-01-01');
   });
 
-  await prueba('montos', () => {
-    assert.equal(C.leerMonto('15.000'), 15000);
-    assert.equal(C.leerMonto('15.000,50'), 15000.5);
-    assert.equal(C.formatearMonto(15000), '₡15.000');
+  await prueba('montos según el país', () => {
+    // Costa Rica: coma decimal
+    assert.equal(C.leerMonto('15.000', 'es-CR'), 15000);
+    assert.equal(C.leerMonto('15 000', 'es-CR'), 15000);
+    assert.equal(C.leerMonto('15000,50', 'es-CR'), 15000.5);
+    // México: punto decimal
+    assert.equal(C.leerMonto('15,000', 'es-MX'), 15000);
+    assert.equal(C.leerMonto('15000.50', 'es-MX'), 15000.5);
+    assert.equal(C.leerMonto('15.000', 'es-MX'), 15000); // 3 cifras = miles en cualquier país
+    assert.equal(C.formatearMonto(15000, '$', 'es-MX'), '$15,000');
+    assert.match(C.formatearMonto(15000, '₡', 'es-CR'), /^₡15\s?000$/u);
+    assert.equal(C.formatearMonto(15000, '€', 'es-ES'), '€15.000');
+  });
+
+  await prueba('países', () => {
+    assert.equal(C.adivinarPais('es-MX', ''), 'MX');
+    assert.equal(C.adivinarPais('es', 'America/Costa_Rica'), 'CR');
+    assert.equal(C.adivinarPais('es-419', 'Asia/Tokyo'), null);
+    assert.equal(C.paisPorPrefijo('506'), 'CR');
+    assert.equal(C.bandera('MX'), '🇲🇽');
   });
 
   await prueba('mensaje con firma y datos vacíos', () => {
@@ -123,17 +139,19 @@ async function prueba(nombre, fn) {
     assert.equal(datos.recordatorios.length, 2); // el borrado se guarda como marca
   });
 
-  await prueba('QR: comprimir + Base45 + partir + unir en desorden', async () => {
+  await prueba('QR: comprimir + base64url + partir (con dirección web) + unir en desorden', async () => {
     // Datos variados (un texto repetido se comprime demasiado y cabría en un solo QR)
     const original = JSON.stringify(Array.from({ length: 300 }, (_, i) => ({ id: `id-${i * 7919}`, nombre: `Clienta Ñandú ${i}`, monto: i * 1371 % 9973 })));
     const bytes = await C.comprimir(original);
-    const texto45 = C.aBase45(bytes);
-    assert.match(texto45, /^[0-9A-Z $%*+\-./:]+$/);
-    const partes = C.crearPartesQR(texto45, 'AB12', 200);
+    const texto64 = C.aBase64Url(bytes);
+    assert.match(texto64, /^[A-Za-z0-9_-]+$/, 'solo caracteres seguros para una dirección web');
+    const partes = C.crearPartesQR(texto64, 'AB12', 'https://amargorm.github.io/Tucankit-Citas/', 200);
     assert.ok(partes.length > 2, 'debería necesitar varias partes');
+    assert.ok(partes[0].startsWith('https://amargorm.github.io/Tucankit-Citas/#qr=TK4.AB12.1.'));
+    assert.ok(!/\s/.test(partes[0]), 'sin espacios (si no, la cámara no lo reconoce como enlace)');
     const desordenadas = [...partes].reverse().map(C.leerParteQR);
     const unido = C.unirPartesQR(desordenadas);
-    assert.equal(await C.descomprimir(C.deBase45(unido)), original);
+    assert.equal(await C.descomprimir(C.deBase64Url(unido)), original);
     assert.equal(C.unirPartesQR(desordenadas.slice(1)), null, 'si falta una parte no debe unir');
     assert.equal(C.leerParteQR('https://otra-cosa.com'), null);
   });

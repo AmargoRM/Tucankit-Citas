@@ -36,13 +36,10 @@
       fechaFormato: '{dia} {numero} de {mes}',
       fechaFormatoConAnio: '{dia} {numero} de {mes} de {anio}',
       momentoFormato: '{fecha}, {hora}',
-      // Separadores de miles y decimales para mostrar montos (₡15.000,50)
-      separadorMiles: '.',
-      separadorDecimal: ',',
       // Piezas para armar plantillas con clics (constructor de mensajes).
       // Cada pieza tiene versión "tu" (tú) y "usted".
       constructor: {
-        saludos: ['Hola {nombre},', '¡Hola {nombre}!', 'Buenos días {nombre},', 'Buenas tardes {nombre},', 'Pura vida {nombre},'],
+        saludos: ['Hola {nombre},', '¡Hola {nombre}!', 'Buenos días {nombre},', 'Buenas tardes {nombre},', 'Saludos {nombre},'],
         cuerpos: {
           cita: {
             tu: 'te recuerdo tu cita de {servicio} el {fecha} a las {hora} en {negocio}.',
@@ -108,6 +105,60 @@
 
   /** Devuelve un dato del idioma actual. */
   const dato = (clave) => IDIOMAS[idioma][clave] ?? IDIOMAS.es[clave];
+
+  /* ---------- Países ----------
+     Código de país del teléfono, moneda y formato local de números.
+     "zonas": zonas horarias, para adivinar el país la primera vez. */
+  const PAISES = [
+    { codigo: 'AR', nombre: 'Argentina', prefijo: '54', moneda: '$', idioma: 'es-AR', zonas: ['America/Argentina', 'America/Buenos_Aires'] },
+    { codigo: 'BO', nombre: 'Bolivia', prefijo: '591', moneda: 'Bs', idioma: 'es-BO', zonas: ['America/La_Paz'] },
+    { codigo: 'BR', nombre: 'Brasil', prefijo: '55', moneda: 'R$', idioma: 'pt-BR', zonas: ['America/Sao_Paulo', 'America/Manaus', 'America/Fortaleza', 'America/Recife', 'America/Bahia', 'America/Belem'] },
+    { codigo: 'CA', nombre: 'Canadá', prefijo: '1', moneda: '$', idioma: 'en-CA', zonas: ['America/Toronto', 'America/Vancouver', 'America/Montreal', 'America/Edmonton', 'America/Winnipeg', 'America/Halifax'] },
+    { codigo: 'CL', nombre: 'Chile', prefijo: '56', moneda: '$', idioma: 'es-CL', zonas: ['America/Santiago'] },
+    { codigo: 'CO', nombre: 'Colombia', prefijo: '57', moneda: '$', idioma: 'es-CO', zonas: ['America/Bogota'] },
+    { codigo: 'CR', nombre: 'Costa Rica', prefijo: '506', moneda: '₡', idioma: 'es-CR', zonas: ['America/Costa_Rica'] },
+    { codigo: 'CU', nombre: 'Cuba', prefijo: '53', moneda: '$', idioma: 'es-CU', zonas: ['America/Havana'] },
+    { codigo: 'EC', nombre: 'Ecuador', prefijo: '593', moneda: '$', idioma: 'es-EC', zonas: ['America/Guayaquil'] },
+    { codigo: 'SV', nombre: 'El Salvador', prefijo: '503', moneda: '$', idioma: 'es-SV', zonas: ['America/El_Salvador'] },
+    { codigo: 'ES', nombre: 'España', prefijo: '34', moneda: '€', idioma: 'es-ES', zonas: ['Europe/Madrid', 'Atlantic/Canary'] },
+    { codigo: 'US', nombre: 'Estados Unidos', prefijo: '1', moneda: '$', idioma: 'es-US', zonas: ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'America/Phoenix', 'America/Anchorage', 'Pacific/Honolulu'] },
+    { codigo: 'GT', nombre: 'Guatemala', prefijo: '502', moneda: 'Q', idioma: 'es-GT', zonas: ['America/Guatemala'] },
+    { codigo: 'HN', nombre: 'Honduras', prefijo: '504', moneda: 'L', idioma: 'es-HN', zonas: ['America/Tegucigalpa'] },
+    { codigo: 'MX', nombre: 'México', prefijo: '52', moneda: '$', idioma: 'es-MX', zonas: ['America/Mexico_City', 'America/Monterrey', 'America/Cancun', 'America/Tijuana', 'America/Merida', 'America/Chihuahua', 'America/Hermosillo', 'America/Mazatlan', 'America/Bahia_Banderas', 'America/Matamoros'] },
+    { codigo: 'NI', nombre: 'Nicaragua', prefijo: '505', moneda: 'C$', idioma: 'es-NI', zonas: ['America/Managua'] },
+    { codigo: 'PA', nombre: 'Panamá', prefijo: '507', moneda: '$', idioma: 'es-PA', zonas: ['America/Panama'] },
+    { codigo: 'PY', nombre: 'Paraguay', prefijo: '595', moneda: '₲', idioma: 'es-PY', zonas: ['America/Asuncion'] },
+    { codigo: 'PE', nombre: 'Perú', prefijo: '51', moneda: 'S/', idioma: 'es-PE', zonas: ['America/Lima'] },
+    { codigo: 'PT', nombre: 'Portugal', prefijo: '351', moneda: '€', idioma: 'pt-PT', zonas: ['Europe/Lisbon', 'Atlantic/Azores', 'Atlantic/Madeira'] },
+    { codigo: 'PR', nombre: 'Puerto Rico', prefijo: '1', moneda: '$', idioma: 'es-PR', zonas: ['America/Puerto_Rico'] },
+    { codigo: 'DO', nombre: 'República Dominicana', prefijo: '1', moneda: 'RD$', idioma: 'es-DO', zonas: ['America/Santo_Domingo'] },
+    { codigo: 'UY', nombre: 'Uruguay', prefijo: '598', moneda: '$', idioma: 'es-UY', zonas: ['America/Montevideo'] },
+    { codigo: 'VE', nombre: 'Venezuela', prefijo: '58', moneda: 'Bs.', idioma: 'es-VE', zonas: ['America/Caracas'] }
+  ];
+
+  /** Busca un país por su código de dos letras (ej.: "MX"). */
+  const paisPorCodigo = (codigo) => PAISES.find((p) => p.codigo === codigo) || null;
+
+  /** Bandera (emoji) a partir del código de dos letras. */
+  const bandera = (codigo) => (/^[A-Z]{2}$/.test(codigo)
+    ? String.fromCodePoint(...[...codigo].map((letra) => 0x1F1E6 + letra.charCodeAt(0) - 65)) : '🌐');
+
+  /**
+   * Adivina el país la primera vez: por el idioma del navegador ("es-MX")
+   * o por la zona horaria del dispositivo. Si no puede, devuelve null.
+   */
+  function adivinarPais(idiomaNavegador = '', zonaHoraria = '') {
+    const region = (String(idiomaNavegador).split('-')[1] || '').toUpperCase();
+    if (paisPorCodigo(region)) return region;
+    const porZona = PAISES.find((p) => p.zonas.some((z) => String(zonaHoraria).startsWith(z)));
+    return porZona ? porZona.codigo : null;
+  }
+
+  /** País que corresponde a un prefijo telefónico (si hay varios, el primero de la lista). */
+  const paisPorPrefijo = (prefijo) => {
+    const preferidos = { 1: 'US' };
+    return preferidos[prefijo] || (PAISES.find((p) => p.prefijo === String(prefijo)) || {}).codigo || null;
+  };
 
   /* Tipos de recordatorio. El orden es el que se muestra en pantalla. */
   const TIPOS = ['cita', 'entrega', 'cobro', 'seguimiento', 'llego'];
@@ -209,32 +260,48 @@
 
   /* ---------- Montos de dinero ---------- */
 
+  /** Separador de decimales de un idioma/país (ej.: "es-CR" → ",", "es-MX" → "."). */
+  function separadorDecimal(idiomaPais = 'es-CR') {
+    try {
+      const parte = new Intl.NumberFormat(idiomaPais).formatToParts(1.5).find((x) => x.type === 'decimal');
+      return parte ? parte.value : ',';
+    } catch (error) {
+      return ',';
+    }
+  }
+
   /**
-   * Lee un monto escrito por una persona y lo convierte en número.
-   * Acepta "15000", "15.000", "15 000", "15.000,50" y "15000.50".
+   * Lee un monto escrito por una persona según la costumbre de su país.
+   * Ej. en Costa Rica: "15000", "15.000", "15 000" y "15000,50".
+   * Ej. en México: "15000", "15,000" y "15000.50".
+   * Si después del separador de decimales hay justo 3 cifras, se toma como
+   * separador de miles ("15.000" = quince mil en cualquier país).
    * Devuelve null si no hay un número válido.
    */
-  function leerMonto(texto) {
+  function leerMonto(texto, idiomaPais = 'es-CR') {
     let limpio = String(texto ?? '').replace(/[^\d.,]/g, '');
     if (!limpio) return null;
-    if (limpio.includes(',')) {
-      // Con coma: la coma es el decimal y los puntos son miles
-      limpio = limpio.replace(/\./g, '').replace(',', '.').replace(/,/g, '');
-    } else if (/^\d{1,3}(\.\d{3})+$/.test(limpio)) {
-      // "15.000" o "1.500.000": los puntos son miles
-      limpio = limpio.replace(/\./g, '');
-    }
+    const decimal = separadorDecimal(idiomaPais);
+    const miles = decimal === ',' ? '.' : ',';
+    limpio = limpio.split(miles).join('');
+    const partes = limpio.split(decimal);
+    if (partes.length > 2) return null;
+    if (partes.length === 2 && partes[1].length === 3) limpio = partes.join(''); // "15.000"
+    else limpio = partes.join('.');
     const numero = Number(limpio);
     return Number.isFinite(numero) && numero >= 0 ? Math.round(numero * 100) / 100 : null;
   }
 
-  /** 15000 → "₡15.000" · 15000.5 → "₡15.000,50" */
-  function formatearMonto(numero, moneda = '₡') {
+  /** 15000 → "₡15 000" (Costa Rica) · "$15,000" (México): según la costumbre del país. */
+  function formatearMonto(numero, moneda = '₡', idiomaPais = 'es-CR') {
     if (typeof numero !== 'number' || !Number.isFinite(numero)) return '';
-    const [entero, decimales] = numero.toFixed(2).split('.');
-    const conMiles = entero.replace(/\B(?=(\d{3})+(?!\d))/g, dato('separadorMiles'));
-    const parteDecimal = decimales === '00' ? '' : dato('separadorDecimal') + decimales;
-    return `${moneda}${conMiles}${parteDecimal}`;
+    let texto;
+    try {
+      texto = new Intl.NumberFormat(idiomaPais, { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(numero);
+    } catch (error) {
+      texto = String(numero);
+    }
+    return `${moneda}${texto}`;
   }
 
   /* =========================================================
@@ -362,7 +429,7 @@
 
   /* =========================================================
      5. MEZCLA SEGURA DE DATOS (para QR y Google Drive)
-     Cada registro (cliente, recordatorio, etiqueta) tiene:
+     Cada registro (cliente, recordatorio, etiqueta, producto) tiene:
        - id: código único
        - actualizadoEn: cuándo se cambió por última vez (milisegundos)
        - dispositivoId: qué dispositivo lo cambió
@@ -456,7 +523,7 @@
   }
 
   /** Colecciones de registros que se sincronizan. */
-  const COLECCIONES = ['clientes', 'recordatorios', 'etiquetas'];
+  const COLECCIONES = ['clientes', 'recordatorios', 'etiquetas', 'productos'];
 
   /**
    * Mezcla todos los datos: { clientes, recordatorios, etiquetas, ajustes }.
@@ -478,7 +545,7 @@
     return { datos, resumen };
   }
 
-  /* ---------- Empaquetar datos para QR: comprimir + Base45 ---------- */
+  /* ---------- Empaquetar datos para QR: comprimir + base64url ---------- */
 
   /** Comprime un texto con gzip. Devuelve bytes (Uint8Array). */
   async function comprimir(texto) {
@@ -493,71 +560,52 @@
   }
 
   /*
-   * Base45: convierte bytes en letras y números que el QR guarda en su modo
-   * "alfanumérico", el más compacto y confiable para leer con la cámara.
+   * base64url: convierte bytes en letras, números, "-" y "_". Son caracteres
+   * que se pueden poner dentro de una dirección web sin que se rompan, así
+   * el QR funciona también con la cámara normal del celular.
    */
-  const ALFABETO_45 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:';
-
-  function aBase45(bytes) {
-    let salida = '';
-    for (let i = 0; i < bytes.length; i += 2) {
-      if (i + 1 < bytes.length) {
-        let n = bytes[i] * 256 + bytes[i + 1];
-        const c = n % 45; n = (n - c) / 45;
-        const d = n % 45; const e = (n - d) / 45;
-        salida += ALFABETO_45[c] + ALFABETO_45[d] + ALFABETO_45[e];
-      } else {
-        const n = bytes[i];
-        const c = n % 45; const d = (n - c) / 45;
-        salida += ALFABETO_45[c] + ALFABETO_45[d];
-      }
-    }
-    return salida;
+  function aBase64Url(bytes) {
+    let binario = '';
+    for (let i = 0; i < bytes.length; i += 1) binario += String.fromCharCode(bytes[i]);
+    const b64 = typeof btoa === 'function' ? btoa(binario) : Buffer.from(binario, 'binary').toString('base64');
+    return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   }
 
-  function deBase45(texto) {
-    const valores = [...texto].map((letra) => {
-      const v = ALFABETO_45.indexOf(letra);
-      if (v < 0) throw new Error('Letra inválida en Base45');
-      return v;
-    });
-    const bytes = [];
-    for (let i = 0; i < valores.length; i += 3) {
-      if (i + 2 < valores.length) {
-        const n = valores[i] + valores[i + 1] * 45 + valores[i + 2] * 2025;
-        if (n > 65535) throw new Error('Base45 inválido');
-        bytes.push(n >> 8, n & 255);
-      } else if (i + 1 < valores.length) {
-        const n = valores[i] + valores[i + 1] * 45;
-        if (n > 255) throw new Error('Base45 inválido');
-        bytes.push(n);
-      } else {
-        throw new Error('Base45 incompleto');
-      }
-    }
-    return new Uint8Array(bytes);
+  function deBase64Url(texto) {
+    if (!/^[A-Za-z0-9_-]*$/.test(texto)) throw new Error('Texto inválido');
+    let b64 = texto.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    const binario = typeof atob === 'function' ? atob(b64) : Buffer.from(b64, 'base64').toString('binary');
+    const bytes = new Uint8Array(binario.length);
+    for (let i = 0; i < binario.length; i += 1) bytes[i] = binario.charCodeAt(i);
+    return bytes;
   }
 
-  /** Letras por código QR (sin contar el encabezado). */
-  const LETRAS_POR_QR = 1000;
+  /** Letras de datos por código QR. */
+  const LETRAS_POR_QR = 900;
 
   /**
-   * Parte un texto en varios códigos QR. Cada parte lleva un encabezado:
-   * "TK3:<lote>:<número>:<total>:<datos>". El lote identifica el envío,
-   * para no mezclar partes de dos envíos distintos.
+   * Parte los datos en varios códigos QR. Cada parte es una dirección web:
+   *   <direccion de la app>#qr=TK4.<lote>.<número>.<total>.<datos>
+   * Así, si se escanea con la cámara normal, el celular ofrece abrir la app.
+   * Lo que va después de "#" nunca se envía a internet: queda en el dispositivo.
+   * El lote identifica el envío, para no mezclar partes de dos envíos distintos.
    */
-  function crearPartesQR(texto45, lote, letrasPorQR = LETRAS_POR_QR) {
-    const total = Math.max(1, Math.ceil(texto45.length / letrasPorQR));
+  function crearPartesQR(texto64, lote, direccionApp = '', letrasPorQR = LETRAS_POR_QR) {
+    const total = Math.max(1, Math.ceil(texto64.length / letrasPorQR));
     const partes = [];
     for (let n = 0; n < total; n += 1) {
-      partes.push(`TK3:${lote}:${n + 1}:${total}:${texto45.slice(n * letrasPorQR, (n + 1) * letrasPorQR)}`);
+      partes.push(`${direccionApp}#qr=TK4.${lote}.${n + 1}.${total}.${texto64.slice(n * letrasPorQR, (n + 1) * letrasPorQR)}`);
     }
     return partes;
   }
 
-  /** Lee una parte escaneada. Devuelve { lote, numero, total, datos } o null si no es nuestra. */
+  /**
+   * Lee una parte escaneada (con o sin la dirección adelante).
+   * Devuelve { lote, numero, total, datos } o null si no es nuestra.
+   */
   function leerParteQR(texto) {
-    const m = /^TK3:([0-9A-Z]{4,8}):(\d{1,4}):(\d{1,4}):([0-9A-Z $%*+\-./:]*)$/.exec(String(texto || '').replace(/[\r\n]+$/, '')); // sin trim: el espacio es una letra de Base45
+    const m = /TK4\.([0-9A-Z]{4,8})\.(\d{1,4})\.(\d{1,4})\.([A-Za-z0-9_-]*)\s*$/.exec(String(texto || ''));
     if (!m) return null;
     const numero = Number(m[2]);
     const total = Number(m[3]);
@@ -591,6 +639,12 @@
     variablesDeTipo,
     leerMonto,
     formatearMonto,
+    separadorDecimal,
+    PAISES,
+    paisPorCodigo,
+    paisPorPrefijo,
+    adivinarPais,
+    bandera,
     reemplazarVariables,
     armarMensaje,
     FORMATO_FECHA,
@@ -621,8 +675,8 @@
     mezclarDatos,
     comprimir,
     descomprimir,
-    aBase45,
-    deBase45,
+    aBase64Url,
+    deBase64Url,
     LETRAS_POR_QR,
     crearPartesQR,
     leerParteQR,

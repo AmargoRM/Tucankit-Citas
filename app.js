@@ -112,7 +112,7 @@ const TEXTOS = {
     campoMonto: 'Monto ({moneda})',
     campoPago: 'Forma de pago',
     ejemploMonto: 'Ej.: 15.000',
-    ejemploPagoCorto: 'Ej.: SINPE Móvil',
+    ejemploPagoCorto: 'Ej.: transferencia',
     detalle_cita: 'Servicio',
     detalle_entrega: 'Qué se entrega',
     detalle_cobro: 'Concepto (opcional)',
@@ -125,7 +125,7 @@ const TEXTOS = {
     ejemploDetalle_llego: 'Ej.: zapatos talla 38',
     campoNota: 'Nota (opcional)',
     ejemploNombre: 'Ej.: María Rodríguez',
-    ejemploTelefono: 'Ej.: 8888 8888',
+    ejemploTelefono: 'Número de WhatsApp',
     ejemploNota: 'Algo que quiera recordar',
     seEnviaraA: 'Se enviará a {numero}',
     errorNombre: 'Escriba el nombre.',
@@ -201,13 +201,16 @@ const TEXTOS = {
     ejemploAtiende: 'Ej.: Laura',
     ayudaAtiende: 'Se usa en los mensajes con {atiende}.',
     campoDireccion: 'Dirección',
-    ejemploDireccion: 'Ej.: San José, 200 m norte del parque',
+    ejemploDireccion: 'Ej.: Calle 5, frente al parque central',
     campoCodigoPais: 'Código de país',
     campoMoneda: 'Moneda',
-    ayudaCodigoPais: 'El código de país se agrega a los teléfonos que no lo tengan (Costa Rica = 506).',
+    ayudaCodigoPais: 'Se agrega a los teléfonos que no lo tengan.',
+    campoPais: 'País',
+    ayudaPais: 'Define el código telefónico, la moneda y cómo se escriben los montos. Cada uno se puede cambiar.',
+    paisOtro: '🌐 Otro país (escribir el código)',
     errorCodigoPais: 'Solo números, de 1 a 4.',
     campoPagoHabitual: 'Forma de pago habitual',
-    ejemploPago: 'Ej.: SINPE Móvil al 8888-8888',
+    ejemploPago: 'Ej.: transferencia a la cuenta 123-456, efectivo',
     ajustesWhatsapp: 'WhatsApp',
     campoWhatsappComputadora: 'En computadora, abrir',
     opcionWhatsappWeb: 'WhatsApp Web (siempre en la misma pestaña)',
@@ -239,6 +242,12 @@ const TEXTOS = {
     errorPlantilla: 'El mensaje no puede quedar vacío.',
     guardarAjustes: 'Guardar ajustes',
     ajustesGuardados: 'Ajustes guardados.',
+    ajustesSinCambios: 'Todo guardado',
+    ajustesConCambios: 'Hay cambios sin guardar',
+    salirSinGuardarTitulo: '¿Guardar los cambios?',
+    salirSinGuardarTexto: 'Hizo cambios en Ajustes que todavía no guardó. Si sale sin guardar, se pierden.',
+    guardarYSalir: 'Guardar',
+    salirSinGuardar: 'Salir sin guardar',
     ejemploNombreCliente: 'María',
     ejemploServicio: 'limpieza dental',
     ejemploDetalle: 'vestido azul',
@@ -246,7 +255,6 @@ const TEXTOS = {
     campoNombreDispositivo: 'Nombre de este dispositivo',
     ejemploNombreDispositivo: 'Ej.: Celular de Ana',
     ayudaNombreDispositivo: 'Sirve para saber desde dónde se hizo cada cambio al sincronizar.',
-    dispositivoGuardado: 'Nombre guardado.',
 
     // Copia de seguridad
     copiaTitulo: 'Copia de seguridad',
@@ -344,7 +352,7 @@ const TEXTOS = {
 
     // Avisos
     avisoActualizacion: 'Hay una versión nueva. Toque para actualizar.',
-    avisoNegocio: 'Escriba el nombre de su negocio en Ajustes para que aparezca en los mensajes.',
+    avisoNegocio: 'Complete en Ajustes el nombre de su negocio y su país, para que los mensajes y los teléfonos salgan bien.',
     irAjustes: 'Ir a Ajustes',
     avisoIphone: 'Para instalar la app en su iPhone: toque el botón Compartir (el cuadrado con la flecha) y luego «Agregar a inicio».',
     avisoMigracion: 'La app se actualizó: sus {citas} citas ahora son recordatorios de tipo «Cita» y se crearon {clientes} clientes. Por si acaso, se guardó una copia automática (Ajustes → Copias automáticas).',
@@ -479,16 +487,24 @@ const PLANTILLA_V1 = 'Hola {nombre}, le recordamos su cita de {servicio} el {fec
 
 /** Ajustes que se sincronizan entre dispositivos (campo por campo). */
 const CLAVES_COMPARTIDAS = [
-  'negocio', 'atiende', 'direccion', 'codigoPais', 'moneda', 'pagoHabitual',
+  'negocio', 'atiende', 'direccion', 'pais', 'codigoPais', 'moneda', 'pagoHabitual',
   'telefonoNegocio', 'enlacesRespuesta', 'firmaActiva', 'firma',
   ...TIPOS.map((tipo) => 'plantilla_' + tipo),
   ...TIPOS.map((tipo) => 'opciones_' + tipo)
 ];
 
 /** Ajustes compartidos con sus valores iniciales. */
+/** País de este dispositivo adivinado por idioma y zona horaria (Costa Rica si no se sabe). */
+function paisInicial() {
+  let zona = '';
+  try { zona = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (error) { zona = ''; }
+  return TucankitCore.adivinarPais(navigator.language || '', zona) || 'CR';
+}
+
 function compartidosPorDefecto() {
+  const pais = TucankitCore.paisPorCodigo(paisInicial());
   const a = {
-    negocio: '', atiende: '', direccion: '', codigoPais: '506', moneda: '₡',
+    negocio: '', atiende: '', direccion: '', pais: pais.codigo, codigoPais: pais.prefijo, moneda: pais.moneda,
     pagoHabitual: '', telefonoNegocio: '', enlacesRespuesta: false, firmaActiva: false, firma: '',
     _sello: {}
   };
@@ -542,6 +558,9 @@ function normalizarCompartidos(a = {}) {
   });
   if (/^\d{1,4}$/.test(String(a.codigoPais || ''))) r.codigoPais = String(a.codigoPais);
   if (typeof a.moneda === 'string' && a.moneda.trim()) r.moneda = a.moneda.trim().slice(0, 4);
+  // País: si no estaba guardado (versiones anteriores), se deduce del código telefónico
+  if (a.pais === 'OTRO' || TucankitCore.paisPorCodigo(a.pais)) r.pais = a.pais;
+  else if (a.codigoPais) r.pais = TucankitCore.paisPorPrefijo(String(a.codigoPais)) || 'OTRO';
   if (typeof a.telefonoNegocio === 'string' && telefonoValido(a.telefonoNegocio)) r.telefonoNegocio = a.telefonoNegocio;
   r.enlacesRespuesta = a.enlacesRespuesta === true;
   r.firmaActiva = a.firmaActiva === true;
@@ -781,6 +800,10 @@ const estado = {
 
 const idDispositivo = () => estado.locales.dispositivoId;
 
+/** Idioma/país para escribir y leer montos (ej.: "es-MX"). */
+const idiomaMontos = (pais = estado.compartidos.pais) => (TucankitCore.paisPorCodigo(pais) || { idioma: 'es' }).idioma;
+const monto = (numero) => formatearMonto(numero, estado.compartidos.moneda, idiomaMontos());
+
 /* Listas activas (sin los borrados) */
 const clientesActivos = () => estado.clientes.filter(estaActivo);
 const recordatoriosActivos = () => estado.recordatorios.filter(estaActivo);
@@ -939,7 +962,7 @@ function dibujarAgenda() {
 /** Línea de detalle de la tarjeta según el tipo. */
 function textoDetalle(r) {
   if (r.tipo === 'cobro') {
-    return [formatearMonto(r.monto, estado.compartidos.moneda), r.pago, r.detalle].filter(Boolean).join(' · ');
+    return [monto(r.monto), r.pago, r.detalle].filter(Boolean).join(' · ');
   }
   return r.detalle;
 }
@@ -1049,7 +1072,7 @@ function abrirFormularioRecordatorio(r = null, clienteId = null) {
   $('rec-fecha').value = r ? r.fecha : fechaInicial;
   $('rec-hora').value = r ? r.hora : '';
   $('rec-detalle').value = r ? r.detalle : '';
-  $('rec-monto').value = r && r.monto != null ? String(r.monto).replace('.', ',') : '';
+  $('rec-monto').value = r && r.monto != null ? formatearMonto(r.monto, '', idiomaMontos()) : '';
   $('rec-pago').value = r ? r.pago : estado.compartidos.pagoHabitual;
   $('rec-nota').value = r ? r.nota : '';
   $('rec-cliente-buscar').value = '';
@@ -1146,10 +1169,10 @@ function dibujarSugerencias() {
 }
 
 /** Muestra debajo de un campo de teléfono cómo quedará el número final. */
-function actualizarNumeroFinal(idCampo, idTexto) {
-  const digitos = normalizarTelefono($(idCampo).value, estado.compartidos.codigoPais);
+function actualizarNumeroFinal(idCampo, idTexto, codigo = estado.compartidos.codigoPais) {
+  const digitos = normalizarTelefono($(idCampo).value, codigo);
   $(idTexto).textContent = telefonoValido(digitos)
-    ? t('seEnviaraA', { numero: formatearTelefono(digitos, estado.compartidos.codigoPais) })
+    ? t('seEnviaraA', { numero: formatearTelefono(digitos, codigo) })
     : '';
 }
 
@@ -1162,11 +1185,11 @@ async function guardarFormularioRecordatorio(evento) {
   const tipo = estado.recTipo;
   const fecha = $('rec-fecha').value;
   const hora = $('rec-hora').value.slice(0, 5);
-  const monto = leerMonto($('rec-monto').value);
+  const montoLeido = leerMonto($('rec-monto').value, idiomaMontos());
   const errores = {
     fecha: FORMATO_FECHA.test(fecha) ? '' : t('errorFecha'),
     hora: (hora && !FORMATO_HORA.test(hora)) || (tipo === 'cita' && !hora) ? t('errorHora') : '',
-    monto: tipo === 'cobro' && monto == null ? t('errorMonto') : '',
+    monto: tipo === 'cobro' && montoLeido == null ? t('errorMonto') : '',
     cliente: '', recnombre: '', rectelefono: ''
   };
 
@@ -1196,7 +1219,7 @@ async function guardarFormularioRecordatorio(evento) {
     fecha,
     hora,
     detalle: $('rec-detalle').value.trim(),
-    monto: tipo === 'cobro' ? monto : null,
+    monto: tipo === 'cobro' ? montoLeido : null,
     pago: tipo === 'cobro' ? $('rec-pago').value.trim() : '',
     nota: $('rec-nota').value.trim()
   };
@@ -1435,7 +1458,7 @@ function datosParaMensaje(r, cliente) {
     detalle: r.detalle,
     fecha: fechaAmigable(r.fecha),
     hora: r.hora ? horaAmigable(r.hora) : '',
-    monto: formatearMonto(r.monto, a.moneda),
+    monto: monto(r.monto),
     pago: r.pago || a.pagoHabitual || t('pagoGenerico'),
     negocio: a.negocio || t('negocioGenerico'),
     atiende: a.atiende,
@@ -1623,7 +1646,9 @@ function cargarFormularioAjustes() {
   $('aj-negocio').value = a.negocio;
   $('aj-atiende').value = a.atiende;
   $('aj-direccion').value = a.direccion;
+  $('aj-pais').value = a.pais;
   $('aj-codigo').value = a.codigoPais;
+  $('campo-codigo').hidden = a.pais !== 'OTRO';
   $('aj-moneda').value = a.moneda;
   $('aj-pago').value = a.pagoHabitual;
   $('aj-whatsapp-computadora').value = estado.locales.whatsappComputadora;
@@ -1632,6 +1657,7 @@ function cargarFormularioAjustes() {
   $('aj-firma-activa').checked = a.firmaActiva;
   $('aj-firma').value = a.firma;
   $('aj-dispositivo').value = estado.locales.nombreDispositivo;
+  marcarAjustesSinGuardar(false);
   estado.editorPlantillas = {};
   estado.editorOpciones = {};
   TIPOS.forEach((tipo) => {
@@ -1643,6 +1669,50 @@ function cargarFormularioAjustes() {
   dibujarEditorPlantilla();
   mostrarUltimaCopia();
   dibujarCopiasAuto();
+}
+
+/** Lista de países para elegir (con bandera y código). */
+function llenarPaises() {
+  const lista = $('aj-pais');
+  const opciones = TucankitCore.PAISES.map((p) => new Option(`${TucankitCore.bandera(p.codigo)} ${p.nombre} (+${p.prefijo})`, p.codigo));
+  opciones.push(new Option(t('paisOtro'), 'OTRO'));
+  lista.replaceChildren(...opciones);
+}
+
+/** Al elegir otro país: se ajustan el código telefónico y la moneda. */
+function alCambiarPais() {
+  const pais = TucankitCore.paisPorCodigo($('aj-pais').value);
+  $('campo-codigo').hidden = Boolean(pais);
+  if (pais) {
+    $('aj-codigo').value = pais.prefijo;
+    $('aj-moneda').value = pais.moneda;
+  }
+  actualizarNumeroFinal('aj-telnegocio', 'aj-telnegocio-final', $('aj-codigo').value.trim());
+  actualizarVistaPrevia();
+}
+
+/** Muestra si hay cambios sin guardar en Ajustes. */
+function marcarAjustesSinGuardar(hay) {
+  estado.ajustesSinGuardar = hay;
+  $('barra-guardar').classList.toggle('sin-guardar', hay);
+  $('ajustes-estado-guardado').textContent = t(hay ? 'ajustesConCambios' : 'ajustesSinCambios');
+}
+
+/**
+ * Cambia de pantalla, pero si se sale de Ajustes con cambios sin guardar,
+ * pregunta antes: Guardar / Salir sin guardar / Cancelar.
+ */
+async function irA(vista) {
+  if (estado.vista === 'ajustes' && vista !== 'ajustes' && estado.ajustesSinGuardar) {
+    const eleccion = await confirmar({
+      titulo: t('salirSinGuardarTitulo'), texto: t('salirSinGuardarTexto'),
+      botonSi: t('guardarYSalir'), botonAlt: t('salirSinGuardar'), peligroso: false
+    });
+    if (!eleccion) return;
+    if (eleccion === true && !(await guardarAjustes())) return;
+    marcarAjustesSinGuardar(false);
+  }
+  mostrarVista(vista);
 }
 
 /** Opciones de las listas del constructor (saludo y despedida). */
@@ -1723,20 +1793,20 @@ function actualizarVistaPrevia() {
     detalle: t('ejemploDetalle'),
     fecha: fechaAmigable(mananaTexto()),
     hora: horaAmigable('15:30'),
-    monto: formatearMonto(15000, $('aj-moneda').value.trim() || '₡'),
+    monto: formatearMonto(15000, $('aj-moneda').value.trim() || '$', idiomaMontos($('aj-pais').value)),
     pago: $('aj-pago').value.trim() || t('pagoGenerico'),
     negocio: $('aj-negocio').value.trim() || t('negocioGenerico'),
     atiende: $('aj-atiende').value.trim(),
     direccion: $('aj-direccion').value.trim()
   };
   const firma = $('aj-firma-activa').checked ? $('aj-firma').value : '';
-  const telNegocio = normalizarTelefono($('aj-telnegocio').value, $('aj-codigo').value.trim() || '506');
+  const telNegocio = normalizarTelefono($('aj-telnegocio').value, $('aj-codigo').value.trim());
   const enlaces = $('aj-enlaces').checked && telefonoValido(telNegocio) ? textoEnlacesRespuesta(tipo, telNegocio, datos) : '';
   $('vista-previa-texto').textContent = armarMensaje(texto, datos, firma, enlaces);
 }
 
 async function guardarAjustes(evento) {
-  evento.preventDefault();
+  if (evento) evento.preventDefault();
   estado.editorPlantillas[estado.editorTipo] = $('aj-plantilla').value;
   const codigo = $('aj-codigo').value.trim();
   const telNegocio = normalizarTelefono($('aj-telnegocio').value, codigo);
@@ -1752,7 +1822,7 @@ async function guardarAjustes(evento) {
   if (vacia) { estado.editorTipo = vacia; dibujarEditorPlantilla(); marcarError('plantilla', t('errorPlantilla')); }
   if (errorCodigo || errorTel || vacia) {
     (errorCodigo ? $('aj-codigo') : errorTel ? $('aj-telnegocio') : $('aj-plantilla')).focus();
-    return;
+    return false;
   }
 
   const nuevos = {
@@ -1760,6 +1830,7 @@ async function guardarAjustes(evento) {
     negocio: $('aj-negocio').value.trim(),
     atiende: $('aj-atiende').value.trim(),
     direccion: $('aj-direccion').value.trim(),
+    pais: $('aj-pais').value,
     codigoPais: codigo,
     moneda: $('aj-moneda').value.trim() || '₡',
     pagoHabitual: $('aj-pago').value.trim(),
@@ -1774,8 +1845,13 @@ async function guardarAjustes(evento) {
   });
   try {
     await guardarCompartidos(nuevos);
-    await guardarLocales({ whatsappComputadora: $('aj-whatsapp-computadora').value === 'app' ? 'app' : 'web' });
+    await guardarLocales({
+      whatsappComputadora: $('aj-whatsapp-computadora').value === 'app' ? 'app' : 'web',
+      nombreDispositivo: $('aj-dispositivo').value.trim()
+    });
+    marcarAjustesSinGuardar(false);
     avisar(t('ajustesGuardados'));
+    return true;
   } catch (error) {
     console.error(error);
     mostrarError(t('errorGuardar'));
@@ -2733,10 +2809,10 @@ async function pedirAlmacenamientoPersistente() {
 /** Conecta cada botón con lo que debe hacer. */
 function conectarEventos() {
   // Navegación
-  document.querySelectorAll('.navegacion button').forEach((b) => b.addEventListener('click', () => mostrarVista(b.dataset.vista)));
+  document.querySelectorAll('.navegacion button').forEach((b) => b.addEventListener('click', () => irA(b.dataset.vista)));
   document.querySelectorAll('.pestana').forEach((b) => b.addEventListener('click', () => { estado.pestana = b.dataset.pestana; dibujarAgenda(); }));
   $('btn-ajustes').addEventListener('click', () => mostrarVista('ajustes'));
-  $('btn-volver').addEventListener('click', () => mostrarVista(estado.vistaAnterior === 'ajustes' ? 'agenda' : estado.vistaAnterior));
+  $('btn-volver').addEventListener('click', () => irA(estado.vistaAnterior === 'ajustes' ? 'agenda' : estado.vistaAnterior));
   $('aviso-negocio-ir').addEventListener('click', () => mostrarVista('ajustes'));
   $('btn-nueva').addEventListener('click', () => (estado.vista === 'clientes' ? abrirFormularioCliente() : abrirFormularioRecordatorio()));
 
@@ -2786,11 +2862,17 @@ function conectarEventos() {
 
   // Ajustes
   llenarOpcionesConstructor();
+  llenarPaises();
+  $('aj-pais').addEventListener('change', alCambiarPais);
+  // Cualquier cambio en el formulario de Ajustes queda "sin guardar" hasta tocar Guardar
+  ['input', 'change'].forEach((tipo) => $('form-ajustes').addEventListener(tipo, () => marcarAjustesSinGuardar(true)));
+  $('form-ajustes').addEventListener('click', (e) => { if (e.target.closest('.segmentado button, #plantilla-tipos .ficha, .variable, #btn-plantilla-defecto')) marcarAjustesSinGuardar(true); });
+  window.addEventListener('beforeunload', (e) => { if (estado.ajustesSinGuardar) { e.preventDefault(); e.returnValue = ''; } });
   $('form-ajustes').addEventListener('submit', guardarAjustes);
   ['aj-negocio', 'aj-atiende', 'aj-direccion', 'aj-moneda', 'aj-pago', 'aj-firma', 'aj-plantilla', 'aj-telnegocio', 'aj-codigo']
     .forEach((id) => $(id).addEventListener('input', actualizarVistaPrevia));
   ['aj-firma-activa', 'aj-enlaces'].forEach((id) => $(id).addEventListener('change', actualizarVistaPrevia));
-  $('aj-telnegocio').addEventListener('input', () => actualizarNumeroFinal('aj-telnegocio', 'aj-telnegocio-final'));
+  $('aj-telnegocio').addEventListener('input', () => actualizarNumeroFinal('aj-telnegocio', 'aj-telnegocio-final', $('aj-codigo').value.trim()));
   $('con-saludo').addEventListener('change', (e) => alCambiarConstructor({ saludo: Number(e.target.value) }));
   $('con-cierre').addEventListener('change', (e) => alCambiarConstructor({ cierre: Number(e.target.value) }));
   $('con-confirmar').addEventListener('change', (e) => alCambiarConstructor({ confirmar: e.target.checked }));
@@ -2801,10 +2883,6 @@ function conectarEventos() {
     estado.editorOpciones[tipo] = opcionesPorDefecto(tipo);
     estado.editorPlantillas[tipo] = plantillaPorDefecto(tipo);
     dibujarEditorPlantilla();
-  });
-  $('btn-guardar-dispositivo').addEventListener('click', async () => {
-    await guardarLocales({ nombreDispositivo: $('aj-dispositivo').value.trim() });
-    avisar(t('dispositivoGuardado'));
   });
 
   // Copias y borrar todo
