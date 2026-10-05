@@ -361,7 +361,7 @@ const TEXTOS = {
     driveUltima: 'Última sincronización: {momento}',
     driveNunca: 'Todavía no se sincronizó',
     driveNoDisponible: 'Todavía no disponible',
-    driveNoDisponibleDetalle: 'Falta un paso del dueño de la app: crear la conexión con Google (ID de cliente). Mientras tanto, use «Pasar datos a otro dispositivo» o la copia de seguridad.',
+    driveNoDisponibleDetalle: 'Falta un paso del dueño de la app: crear la conexión con Google (ID de cliente). Mientras tanto, use «Compartir copia» (en Copia de seguridad).',
     driveSinConfigurar: 'Falta configurar el ID de cliente de Google en el archivo config.js. Siga la guía docs/google-drive.md.',
     driveSinInternet: 'Para conectar con Google Drive necesita internet.',
     driveNoConectado: 'No se pudo conectar con Google Drive. Intente de nuevo.',
