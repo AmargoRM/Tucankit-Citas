@@ -30,3 +30,11 @@ Estas reglas valen para cualquier persona o asistente que modifique este reposit
 - `app.js`: pantalla, IndexedDB, copias, Drive, bienvenida e instalación. Textos de pantalla en `TEXTOS`.
 - Fechas: siempre texto `AAAA-MM-DD` y horas `HH:MM`; nunca `new Date("AAAA-MM-DD")` (UTC).
 - Bibliotecas externas: si alguna vez hacen falta, se copian en `vendor/` con su licencia (solo MIT o Apache 2.0). Hoy no se usa ninguna.
+
+## Decisiones tomadas por el dueño (aplicar cuando llegue el momento)
+
+- **Cobro / licencias:** cuando se inicie el cobro, aplicar **solo la opción 2**: clave de licencia
+  firmada (se verifica sin internet con una clave pública; solo el dueño puede generar claves) que
+  incluye el **nombre del comprador**, y la app lo muestra en Ajustes («Licencia de …»).
+  **No** usar activación en línea ni servidor (Cloudflare Worker), ni ofuscar el código, salvo que
+  el dueño lo pida explícitamente más adelante.
