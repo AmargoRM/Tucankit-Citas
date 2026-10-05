@@ -400,8 +400,10 @@ main {
   left: 50%;
   bottom: calc(90px + env(safe-area-inset-bottom));
   z-index: 30;
+  width: max-content;
   max-width: calc(100vw - 32px);
   padding: 12px 18px;
+  text-align: center;
   border-radius: 12px;
   background: var(--negro);
   color: #fff;

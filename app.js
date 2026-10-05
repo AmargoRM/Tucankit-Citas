@@ -8,6 +8,7 @@
      3. Base de datos (IndexedDB)
      4. Lista de citas y pestañas
      5. Formulario de cita
+     6. Recordatorio por WhatsApp
     10. Inicio de la app
    ========================================================= */
 'use strict';
@@ -543,6 +544,18 @@ function crearTarjeta(cita, { mostrarFecha, pasada }) {
   parte('accion-eliminar').textContent = t('eliminar');
   parte('accion-desmarcar').textContent = t('desmarcar');
 
+  // Si ya se envió el recordatorio, la tarjeta se ve distinta (borde verde y ✓)
+  if (cita.recordatorioEnviado) {
+    tarjeta.classList.add('enviada');
+    parte('cita-enviado').hidden = false;
+    parte('cita-enviado-texto').textContent = t('recordatorioEnviado', {
+      momento: momentoAmigable(cita.recordatorioFecha)
+    });
+    const enviar = parte('accion-enviar');
+    enviar.textContent = t('reenviarRecordatorio');
+    enviar.classList.replace('boton-accion', 'boton-secundario');
+  }
+
   return tarjeta;
 }
 
@@ -554,7 +567,9 @@ function alTocarLista(evento) {
   const cita = estado.citas.find((c) => c.id === tarjeta.dataset.id);
   if (!cita) return;
 
-  if (boton.classList.contains('accion-editar')) abrirFormulario(cita);
+  if (boton.classList.contains('accion-enviar')) enviarRecordatorio(cita);
+  else if (boton.classList.contains('accion-desmarcar')) marcarRecordatorio(cita, false);
+  else if (boton.classList.contains('accion-editar')) abrirFormulario(cita);
   else if (boton.classList.contains('accion-eliminar')) eliminarCita(cita);
 }
 
@@ -668,6 +683,66 @@ async function guardarFormulario(evento) {
     $('dialogo-cita').close();
     mostrarCitas();
     avisar(t('citaGuardada'));
+  } catch (error) {
+    console.error(error);
+    mostrarError(t('errorGuardar'));
+  }
+}
+
+/* =========================================================
+   6. RECORDATORIO POR WHATSAPP
+   La app NO envía mensajes sola. Abre WhatsApp con el mensaje
+   ya escrito (enlace oficial wa.me) y la persona toca "enviar".
+   ========================================================= */
+
+/**
+ * Reemplaza las palabras entre { } de la plantilla por los datos.
+ * Las palabras que no conoce las deja tal cual.
+ */
+function armarMensaje(plantilla, datos) {
+  return plantilla
+    .replace(/\{(\w+)\}/g, (completo, nombre) => (nombre in datos ? datos[nombre] : completo))
+    .replace(/[ \t]{2,}/g, ' ') // quita espacios dobles si algún dato venía vacío
+    .trim();
+}
+
+/** Los datos de una cita listos para poner en el mensaje. */
+function datosParaMensaje(cita) {
+  return {
+    nombre: cita.nombre,
+    servicio: cita.servicio || t('servicioGenerico'),
+    fecha: fechaAmigable(cita.fecha),
+    hora: horaAmigable(cita.hora),
+    negocio: estado.ajustes.negocio || t('negocioGenerico'),
+    direccion: estado.ajustes.direccion || ''
+  };
+}
+
+/** Arma el enlace oficial de WhatsApp: https://wa.me/<numero>?text=<mensaje> */
+function enlaceWhatsApp(numero, mensaje) {
+  return `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
+}
+
+function enviarRecordatorio(cita) {
+  const mensaje = armarMensaje(estado.ajustes.plantilla, datosParaMensaje(cita));
+  // Se abre primero (antes de cualquier espera) para que el navegador no lo bloquee
+  window.open(enlaceWhatsApp(cita.telefono, mensaje), '_blank', 'noopener');
+  marcarRecordatorio(cita, true);
+}
+
+/** Marca (true) o desmarca (false) el recordatorio de una cita y lo guarda. */
+async function marcarRecordatorio(cita, enviado) {
+  const actualizada = {
+    ...cita,
+    recordatorioEnviado: enviado,
+    recordatorioFecha: enviado ? Date.now() : null,
+    modificada: Date.now()
+  };
+  try {
+    await guardarCitaBD(actualizada);
+    estado.citas = estado.citas.map((c) => (c.id === cita.id ? actualizada : c));
+    mostrarCitas();
+    avisar(t(enviado ? 'recordatorioMarcado' : 'recordatorioDesmarcado'));
   } catch (error) {
     console.error(error);
     mostrarError(t('errorGuardar'));
