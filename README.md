@@ -20,6 +20,11 @@ La app **no envía mensajes sola**: arma el mensaje y abre WhatsApp con el texto
 - **Mensajes** por tipo, armables con clics (saludo, tú/usted, confirmar, dirección, despedida),
   firma opcional y enlaces para que el cliente responda con un toque.
 - **Estados de respuesta:** confirmó, canceló, pagó, respondió.
+- **Permisos y difusión:** cada cliente puede marcar «Acepta recibir novedades» (con fecha) y «Confirmó que
+  guardó mi número». «Pedir que guarde mi número» abre su chat con un mensaje y ofrece la tarjeta de contacto
+  (.vcf) del negocio. En Grupos, «Preparar difusión de WhatsApp» muestra el mensaje para copiar, la lista de
+  clientes con permiso en tandas de 256 y una guía para crear la difusión **dentro de WhatsApp**.
+  La app nunca crea listas ni envía mensajes en lote.
 - **Grupos:** por etiqueta (puesta a mano) o por servicio o producto (automático: por ejemplo, «Zapatos»
   junta a los clientes que tienen «Zapatos» en algún recordatorio). Sirven para filtrar en Clientes y para
   mandar un mensaje a todos, en fila (un toque por mensaje).
@@ -124,7 +129,7 @@ la instalación, «Compartir copia» y Google Drive **solo funcionan en `localho
 Cada cambio en archivos de la app sube en 1 el número de `sw.js`:
 
 ```js
-const VERSION = 22;   // cambiar a 23, luego 24, etc.
+const VERSION = 23;   // cambiar a 24, luego 25, etc.
 ```
 
 Si no se sube, los teléfonos que ya tienen la app siguen viendo la versión vieja.

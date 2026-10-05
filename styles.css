@@ -858,3 +858,16 @@ body:has(#barra-seleccion:not([hidden])) .toast { bottom: calc(200px + env(safe-
 
 /* Texto o botón centrado debajo de una lista */
 .centrado { text-align: center; margin: 14px 0 0; }
+
+/* ---------- Permisos del cliente y difusión ---------- */
+.ficha-permisos { list-style: none; margin: 4px 0 12px; padding: 0; font-size: .9rem; color: var(--texto-suave); }
+.ficha-permisos li { margin: 2px 0; }
+.ayuda-casilla { display: block; margin: -6px 0 10px 4px; }
+.ayuda-casilla:empty { display: none; }
+.ayuda-alerta { color: #8a5a00; font-weight: 600; }
+.segmentado-ancho { display: flex; width: 100%; }
+.segmentado-ancho button { flex: 1; }
+.difusion-guia { margin: 0 0 10px; padding-left: 22px; }
+.difusion-guia li { margin: 0 0 6px; }
+.difusion-tanda { margin-top: 12px; }
+.difusion-tanda h3 { margin: 0; font-size: 1rem; }

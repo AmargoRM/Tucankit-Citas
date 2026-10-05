@@ -337,15 +337,19 @@
   const normal = (texto) => String(texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
   /** Columnas de la plantilla (el orden en que se descargan). */
-  const COLUMNAS = ['Nombre', 'Teléfono', 'Nota', 'Etiquetas'];
+  const COLUMNAS = ['Nombre', 'Teléfono', 'Nota', 'Etiquetas', 'Acepta novedades'];
 
   /** Reconoce el encabezado aunque esté escrito distinto ("Celular", "Notas", "Grupo"...). */
   const RECONOCER = {
     nombre: /^(nombre|cliente)/,
     telefono: /^(telefono|celular|movil|whatsapp|numero|tel\b)/,
     nota: /^(nota|comentario|observacion)/,
-    etiquetas: /^(etiqueta|grupo)/
+    etiquetas: /^(etiqueta|grupo)/,
+    novedades: /^(acepta|novedad|permiso)/
   };
+
+  /** "Sí", "si", "x", "1", "yes", "true" = acepta. Vacío o cualquier otra cosa = no acepta. */
+  const esSi = (texto) => /^(si|s|x|1|yes|y|true|verdadero|acepta)$/.test(normal(texto).replace(/[.!]/g, ''));
 
   /** Las filas que empiezan con "EJEMPLO" en el nombre se ignoran (son de la plantilla). */
   const esEjemplo = (nombre) => normal(nombre).startsWith('ejemplo');
@@ -353,13 +357,13 @@
   /**
    * Convierte las filas leídas en clientes.
    * codigoPais: el código del país del negocio, para números escritos sin "+".
-   * Devuelve { clientes: [{ fila, nombre, telefono, nota, etiquetas }], errores: [{ fila, motivo, nombre }] }
+   * Devuelve { clientes: [{ fila, nombre, telefono, nota, etiquetas, aceptaNovedades }], errores: [{ fila, motivo, nombre }] }
    * motivo: 'sinNombre' | 'telefono' | 'repetidoArchivo'.
    */
   function filasAClientes(filas, codigoPais, normalizarTelefono, telefonoValido) {
     // Buscar el encabezado en las primeras 5 filas; si no hay, se usa el orden de la plantilla
     let inicio = 0;
-    let cols = { nombre: 0, telefono: 1, nota: 2, etiquetas: 3 };
+    let cols = { nombre: 0, telefono: 1, nota: 2, etiquetas: 3, novedades: 4 };
     for (let f = 0; f < Math.min(5, filas.length); f++) {
       const encontrado = {};
       (filas[f] || []).forEach((celda, c) => {
@@ -368,7 +372,7 @@
         });
       });
       if (encontrado.nombre !== undefined && encontrado.telefono !== undefined) {
-        cols = { nota: -1, etiquetas: -1, ...encontrado };
+        cols = { nota: -1, etiquetas: -1, novedades: -1, ...encontrado };
         inicio = f + 1;
         break;
       }
@@ -391,7 +395,7 @@
       if (vistos.has(telefono)) { errores.push({ fila: numeroFila, motivo: 'repetidoArchivo', nombre }); continue; }
       vistos.add(telefono);
       const etiquetas = [...new Set(celda(cols.etiquetas).split(/[,;/]/).map((e) => e.trim().slice(0, 30)).filter(Boolean))];
-      clientes.push({ fila: numeroFila, nombre, telefono, nota: celda(cols.nota).slice(0, 500), etiquetas });
+      clientes.push({ fila: numeroFila, nombre, telefono, nota: celda(cols.nota).slice(0, 500), etiquetas, aceptaNovedades: esSi(celda(cols.novedades)) });
     }
     return { clientes, errores };
   }
@@ -401,7 +405,7 @@
    * formatear: cómo escribir el teléfono (por defecto "+" y los dígitos).
    */
   function clientesAFilas(clientes, formatear = (digitos) => '+' + digitos) {
-    return [COLUMNAS, ...clientes.map((c) => [c.nombre, formatear(c.telefono), c.nota || '', (c.etiquetas || []).join(', ')])];
+    return [COLUMNAS, ...clientes.map((c) => [c.nombre, formatear(c.telefono), c.nota || '', (c.etiquetas || []).join(', '), c.aceptaNovedades ? 'Sí' : 'No'])];
   }
 
   const TucankitExcel = { crc32, crearZip, abrirZip, crearXlsx, leerXlsx, leerCsv, leerArchivo, COLUMNAS, filasAClientes, clientesAFilas };

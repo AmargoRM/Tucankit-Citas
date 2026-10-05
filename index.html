@@ -157,9 +157,12 @@
         <p id="ficha-telefono" class="ficha-telefono"></p>
         <div id="ficha-etiquetas" class="etiquetas"></div>
         <p id="ficha-nota" class="cita-nota"></p>
+        <!-- Permiso para novedades y si guardó el número del negocio (con fechas) -->
+        <ul id="ficha-permisos" class="ficha-permisos"></ul>
         <div class="ficha-acciones">
           <button id="ficha-recordatorio" class="boton boton-accion" type="button" data-t="nuevoRecordatorioCliente"></button>
           <button id="ficha-whatsapp" class="boton boton-secundario" type="button" data-t="abrirChat"></button>
+          <button id="ficha-pedir-guardar" class="boton boton-secundario" type="button" data-t="pedirGuardar"></button>
           <button id="ficha-editar" class="boton boton-fantasma-oscuro boton-chico" type="button" data-t="editar"></button>
           <button id="ficha-eliminar" class="boton boton-fantasma-peligro boton-chico" type="button" data-t="eliminar"></button>
         </div>
@@ -173,6 +176,10 @@
       <div class="tarjeta">
         <h2 data-t="grupoTitulo"></h2>
         <p class="ayuda" data-t="grupoExplicacion"></p>
+        <div class="segmentado segmentado-ancho" role="group">
+          <button type="button" data-modo="uno" data-t="modoUnoPorUno"></button>
+          <button type="button" data-modo="difusion" data-t="modoDifusion"></button>
+        </div>
 
         <h3 data-t="grupoPaso1"></h3>
         <div id="grupo-etiquetas" class="fichas-filtro" role="group"></div>
@@ -192,12 +199,31 @@
           <p id="grupo-vista-previa" class="burbuja"></p>
         </div>
 
-        <h3 data-t="grupoPaso3"></h3>
-        <p id="grupo-progreso" class="grupo-progreso"></p>
-        <button id="grupo-siguiente" class="boton boton-accion boton-ancho" type="button"></button>
-        <button id="grupo-reiniciar" class="enlace" type="button" data-t="grupoReiniciar"></button>
+        <div id="grupo-uno">
+          <h3 data-t="grupoPaso3"></h3>
+          <p id="grupo-progreso" class="grupo-progreso"></p>
+          <button id="grupo-siguiente" class="boton boton-accion boton-ancho" type="button"></button>
+          <button id="grupo-reiniciar" class="enlace" type="button" data-t="grupoReiniciar"></button>
+        </div>
+
+        <!-- Modo difusión: la app solo prepara y guía; la lista se crea y se envía en WhatsApp -->
+        <div id="grupo-difusion" hidden>
+          <button id="difusion-copiar" class="boton boton-accion boton-ancho" type="button" data-t="difusionCopiar"></button>
+          <p id="difusion-aviso-nombre" class="ayuda" data-t="difusionSinNombre" hidden></p>
+          <h3 data-t="difusionPaso3"></h3>
+          <p id="difusion-resumen" class="grupo-progreso"></p>
+          <ol class="difusion-guia">
+            <li data-t="difusionGuia1"></li>
+            <li data-t="difusionGuia2"></li>
+            <li data-t="difusionGuia3"></li>
+            <li data-t="difusionGuia4"></li>
+            <li data-t="difusionGuia5"></li>
+          </ol>
+          <button id="difusion-reglas" class="enlace" type="button" data-t="difusionVerReglas"></button>
+        </div>
       </div>
       <div id="grupo-lista" class="lista lista-compacta"></div>
+      <div id="difusion-tandas" hidden></div>
     </section>
 
     <!-- ===== AJUSTES =====
@@ -567,11 +593,42 @@
         <textarea id="cli-nota" rows="3" maxlength="1000" data-t-placeholder="ejemploNotaCliente"></textarea>
       </label>
 
+      <label class="interruptor">
+        <input id="cli-novedades" type="checkbox">
+        <span data-t="campoNovedades"></span>
+      </label>
+      <small id="cli-novedades-fecha" class="ayuda ayuda-casilla"></small>
+      <label class="interruptor">
+        <input id="cli-guardo" type="checkbox">
+        <span data-t="campoGuardoNumero"></span>
+      </label>
+      <small id="cli-guardo-fecha" class="ayuda ayuda-casilla"></small>
+
       <div class="dialogo-acciones">
         <button id="cli-cancelar" class="boton boton-fantasma-oscuro" type="button" data-t="cancelar"></button>
         <button class="boton boton-accion" type="submit" data-t="guardar"></button>
       </div>
     </form>
+  </dialog>
+
+  <!-- ===== Pedir que guarde el número del negocio ===== -->
+  <dialog id="dialogo-pedir-guardar" class="dialogo" aria-labelledby="pg-titulo">
+    <div class="dialogo-cuerpo">
+      <h2 id="pg-titulo" data-t="pedirGuardarTitulo"></h2>
+      <p class="ayuda" data-t="pedirGuardarExplicacion"></p>
+      <label class="campo">
+        <span data-t="pedirGuardarMensaje"></span>
+        <textarea id="pg-mensaje" rows="5" maxlength="1000"></textarea>
+      </label>
+      <div class="botones-columna">
+        <button id="pg-whatsapp" class="boton boton-accion boton-ancho" type="button" data-t="pedirGuardarAbrir"></button>
+        <button id="pg-tarjeta" class="boton boton-secundario boton-ancho" type="button" data-t="pedirGuardarTarjeta"></button>
+      </div>
+      <p id="pg-sin-telefono" class="ayuda ayuda-alerta" data-t="pedirGuardarSinTelefono" hidden></p>
+      <div class="dialogo-acciones">
+        <button id="pg-cerrar" class="boton boton-fantasma-oscuro" type="button" data-t="cerrar"></button>
+      </div>
+    </div>
   </dialog>
 
   <!-- ===== Bienvenida: ventanas que explican la app la primera vez ===== -->

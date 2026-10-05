@@ -211,6 +211,7 @@ const TEXTOS = {
     grupoPaso3: '3. Enviar uno por uno',
     grupoTodos: 'Todos los clientes',
     vistaPreviaPrimero: 'Vista previa (con el primer cliente)',
+    vistaPreviaDifusion: 'Vista previa (todos reciben este mismo texto)',
     grupoMensajeInicial: 'Hola {nombre}, ',
     grupoElegir: 'Elija a quiénes enviar.',
     grupoProgreso: 'Enviados: {enviados} de {total}',
@@ -221,6 +222,55 @@ const TEXTOS = {
     grupoEnviado: '✓ Enviado',
     grupoEnviar: 'Enviar',
     grupoErrorMensaje: 'Escriba el mensaje.',
+
+    // Difusión de WhatsApp (la app prepara y guía; nunca envía)
+    modoUnoPorUno: 'Uno por uno',
+    modoDifusion: 'Preparar difusión de WhatsApp',
+    difusionCopiar: '📋 Copiar mensaje',
+    difusionCopiado: 'Mensaje copiado. Ahora péguelo en WhatsApp.',
+    difusionNoCopio: 'No se pudo copiar. Mantenga el dedo sobre el mensaje y elija «Copiar».',
+    difusionSinNombre: 'En una difusión todos reciben el mismo texto: {nombre} se quita del mensaje.',
+    difusionPaso3: '3. Crear la difusión en WhatsApp',
+    difusionResumen: '{incluidos} con permiso para novedades: {listas} listas de hasta 256 contactos.',
+    difusionResumenUna: '{incluidos} con permiso para novedades: cabe en 1 lista.',
+    difusionResumenExcluidos: '{excluidos} sin permiso no se incluyen.',
+    difusionResumenExcluidoUno: '1 sin permiso no se incluye.',
+    difusionNadie: 'Ningún cliente de este grupo aceptó recibir novedades. Márquelo en la ficha de cada cliente («Editar»).',
+    difusionAvisoGuardo: '⚠️ = no confirmó que guardó su número: puede que la difusión no le llegue.',
+    difusionGuia1: 'Toque «Copiar mensaje».',
+    difusionGuia2: 'En WhatsApp: Android, menú ⋮ → «Nueva difusión»; iPhone, Chats → «Listas» o «Difusión» → «Nueva lista».',
+    difusionGuia3: 'Elija los contactos de la lista 1 de abajo (máximo 256). Deben estar guardados en los contactos de su teléfono.',
+    difusionGuia4: 'Cree la lista, pegue el mensaje en el chat de la difusión y envíelo.',
+    difusionGuia5: 'Si hay más de una lista, repita con la siguiente.',
+    difusionVerReglas: 'Ver las reglas de la difusión',
+    difusionLista: 'Lista {numero} · {cantidad} contactos',
+    difusionCopiarNombres: 'Copiar nombres y números',
+    difusionNombresCopiados: 'Lista copiada.',
+    difusionReglasTitulo: 'Antes de usar la difusión',
+    difusionReglasTexto: '• Incluya solo clientes que aceptaron recibir novedades (la app ya los filtra).\n• La difusión solo les llega a quienes guardaron su número en sus contactos.\n• Envíe con una frecuencia razonable: por ejemplo, una o dos veces por semana como máximo.\n• Si muchas personas reportan sus mensajes como spam, WhatsApp puede bloquear su número.\n• La app no crea la lista ni envía nada: usted lo hace en WhatsApp.',
+
+    // Permisos del cliente
+    campoNovedades: 'Acepta recibir novedades',
+    campoGuardoNumero: 'Confirmó que guardó mi número',
+    permisoAceptoEl: 'Aceptó el {fecha}',
+    permisoRetiroEl: 'Retiró el permiso el {fecha}',
+    permisoGuardoEl: 'Lo confirmó el {fecha}',
+    fichaNovedadesSi: '✅ Acepta novedades desde el {fecha}',
+    fichaNovedadesRetiro: '🚫 Retiró el permiso de novedades el {fecha}',
+    fichaNovedadesNo: '— Sin permiso para novedades',
+    fichaGuardoSi: '📇 Confirmó que guardó su número el {fecha}',
+    fichaPidioGuardar: '📨 Se le pidió guardar su número el {fecha}',
+    pedirGuardar: '📇 Pedir que guarde mi número',
+    pedirGuardarTitulo: 'Pedir que guarde su número',
+    pedirGuardarExplicacion: 'Las difusiones de WhatsApp solo les llegan a quienes guardaron su número. Revise el mensaje, ábralo en WhatsApp y envíelo usted.',
+    pedirGuardarMensaje: 'Mensaje (puede cambiarlo)',
+    pedirGuardarAbrir: 'Abrir WhatsApp con este mensaje',
+    pedirGuardarTarjeta: 'Compartir mi tarjeta de contacto',
+    pedirGuardarSinTelefono: 'Para la tarjeta de contacto, escriba primero el teléfono del negocio en Ajustes → Negocio.',
+    pedirGuardarTextoTu: 'Hola {nombre}, te escribe {negocio}. ¿Me ayudas guardando este número en tus contactos? Así te llegan nuestras novedades y recordatorios. ¡Gracias!',
+    pedirGuardarTextoUsted: 'Hola {nombre}, le escribe {negocio}. ¿Me ayuda guardando este número en sus contactos? Así le llegan nuestras novedades y recordatorios. ¡Gracias!',
+    tarjetaCompartida: 'Tarjeta de contacto lista.',
+    tarjetaDescargada: 'Se descargó la tarjeta de contacto (.vcf). En el chat de WhatsApp, toque el clip 📎 → Documento y elíjala.',
 
     // Ajustes
     volver: '← Volver',
@@ -326,6 +376,7 @@ const TEXTOS = {
       '2. Nombre y Teléfono son obligatorios. Nota y Etiquetas son opcionales.',
       '3. Teléfono: escríbalo como lo marca normalmente (ej.: 8888 1111). Si es de otro país, empiece con + y el código (ej.: +52 55 1234 5678).',
       '4. Etiquetas: separadas por comas (ej.: VIP, Zapatos). Si no existen, la app las crea.',
+      '   Acepta novedades: escriba «Sí» solo si el cliente aceptó recibir sus novedades y promociones. Vacío o «No» = no acepta.',
       '5. La fila que empieza con «EJEMPLO» se ignora: puede borrarla.',
       '6. Guarde el archivo (Excel .xlsx o CSV) y en la app toque Ajustes → Clientes en Excel → Importar clientes.',
       '',
@@ -371,6 +422,7 @@ const TEXTOS = {
     motivo_borrar: 'antes de borrar todo',
     motivo_volver: 'antes de volver a una copia',
     motivo_importar: 'antes de importar clientes',
+    motivo_permisos: 'antes de agregar los permisos de novedades',
     motivo_qr: 'antes de recibir por QR',
     confirmarVolverTitulo: '¿Volver a esta copia?',
     confirmarVolverTexto: 'Sus datos quedarán como estaban el {momento}.\n\nIMPORTANTE: si usa sincronización, esto también se aplicará en sus otros dispositivos: lo que se hizo después de esa copia se deshará en todos.\n\nAntes de cambiar, se guarda una copia de lo actual.',
@@ -649,7 +701,9 @@ function localesPorDefecto() {
     bienvenidaVista: false,
     ultimaCopia: null,
     primerUso: Date.now(),
-    envioGrupo: { grupo: '', mensaje: t('grupoMensajeInicial'), enviados: [], elegidos: [] },
+    envioGrupo: { grupo: '', mensaje: t('grupoMensajeInicial'), enviados: [], elegidos: [], modo: 'uno' },
+    avisoDifusionVisto: false, // reglas de la difusión ya leídas en este dispositivo
+    copiaPermisosHecha: false, // copia automática antes de agregar los permisos (una sola vez)
     // Google Drive (propio de este dispositivo; nunca se sincroniza)
     driveActivo: false,
     driveToken: '',        // permiso temporal de Google (~1 hora)
@@ -716,6 +770,8 @@ function normalizarLocales(a = {}) {
   r.ayudaIphoneOculta = a.ayudaIphoneOculta === true;
   r.avisoDireccionOculto = a.avisoDireccionOculto === true;
   r.bienvenidaVista = a.bienvenidaVista === true;
+  r.avisoDifusionVisto = a.avisoDifusionVisto === true;
+  r.copiaPermisosHecha = a.copiaPermisosHecha === true;
   if (typeof a.ultimaCopia === 'number') r.ultimaCopia = a.ultimaCopia;
   if (typeof a.primerUso === 'number') r.primerUso = a.primerUso;
   r.driveActivo = a.driveActivo === true;
@@ -729,7 +785,8 @@ function normalizarLocales(a = {}) {
       grupo: typeof g.grupo === 'string' ? g.grupo : '',
       mensaje: typeof g.mensaje === 'string' ? g.mensaje : r.envioGrupo.mensaje,
       enviados: Array.isArray(g.enviados) ? g.enviados.filter((x) => typeof x === 'string') : [],
-      elegidos: Array.isArray(g.elegidos) ? g.elegidos.filter((x) => typeof x === 'string') : []
+      elegidos: Array.isArray(g.elegidos) ? g.elegidos.filter((x) => typeof x === 'string') : [],
+      modo: g.modo === 'difusion' ? 'difusion' : 'uno'
     };
   }
   return r;
@@ -1589,6 +1646,112 @@ async function mensajeASeleccionados() {
   mostrarVista('grupos');
 }
 
+/* ---------------------------------------------------------
+   Permisos del cliente: acepta novedades y guardó el número
+   Campos (opcionales; si faltan = no):
+     aceptaNovedades (sí/no) y novedadesFecha (AAAA-MM-DD del último cambio)
+     guardoNumero (sí/no) y guardoNumeroFecha (AAAA-MM-DD)
+     pidioGuardarFecha (AAAA-MM-DD: última vez que se le pidió guardar el número)
+   --------------------------------------------------------- */
+
+const fechaO = (x) => (FORMATO_FECHA.test(String(x || '')) ? x : '');
+
+/** Permisos revisados de un cliente (para copias, Drive y registros viejos). */
+const permisosDe = (c) => ({
+  aceptaNovedades: c.aceptaNovedades === true,
+  novedadesFecha: fechaO(c.novedadesFecha),
+  guardoNumero: c.guardoNumero === true,
+  guardoNumeroFecha: fechaO(c.guardoNumeroFecha),
+  pidioGuardarFecha: fechaO(c.pidioGuardarFecha)
+});
+
+/** "2026-10-05" → "5 de octubre de 2026". */
+function fechaLarga(texto) {
+  if (!fechaO(texto)) return '';
+  const [a, m, d] = texto.split('-').map(Number);
+  return `${d} de ${TucankitCore.IDIOMAS[IDIOMA].meses[m - 1]} de ${a}`;
+}
+
+/** Líneas de la ficha con el estado de los permisos. */
+function dibujarPermisos(c) {
+  const p = permisosDe(c);
+  const lineas = [];
+  if (p.aceptaNovedades) lineas.push(t('fichaNovedadesSi', { fecha: fechaLarga(p.novedadesFecha) || '—' }));
+  else if (p.novedadesFecha) lineas.push(t('fichaNovedadesRetiro', { fecha: fechaLarga(p.novedadesFecha) }));
+  else lineas.push(t('fichaNovedadesNo'));
+  if (p.guardoNumero) lineas.push(t('fichaGuardoSi', { fecha: fechaLarga(p.guardoNumeroFecha) || '—' }));
+  else if (p.pidioGuardarFecha) lineas.push(t('fichaPidioGuardar', { fecha: fechaLarga(p.pidioGuardarFecha) }));
+  $('ficha-permisos').replaceChildren(...lineas.map((l) => crear('li', '', l)));
+}
+
+/** Textos de fecha debajo de las casillas del formulario. */
+function dibujarFechasCasillas() {
+  const c = clientePorId(estado.editandoClienteId);
+  const p = permisosDe(c || {});
+  const novedades = $('cli-novedades').checked;
+  $('cli-novedades-fecha').textContent = novedades === p.aceptaNovedades && p.novedadesFecha
+    ? t(novedades ? 'permisoAceptoEl' : 'permisoRetiroEl', { fecha: fechaLarga(p.novedadesFecha) }) : '';
+  $('cli-guardo-fecha').textContent = $('cli-guardo').checked && p.guardoNumero && p.guardoNumeroFecha
+    ? t('permisoGuardoEl', { fecha: fechaLarga(p.guardoNumeroFecha) }) : '';
+}
+
+/** Abre la ventana para pedirle al cliente que guarde el número del negocio. */
+function abrirPedirGuardar() {
+  const c = clientePorId(estado.clienteAbierto);
+  if (!c) return;
+  const a = estado.compartidos;
+  const trato = (a.opciones_cita && a.opciones_cita.trato) === 'usted' ? 'Usted' : 'Tu';
+  $('pg-mensaje').value = armarMensaje(t('pedirGuardarTexto' + trato), { nombre: c.nombre, negocio: a.negocio || t('negocioGenerico') }, firmaActual());
+  $('pg-sin-telefono').hidden = !!a.telefonoNegocio;
+  $('pg-tarjeta').disabled = !a.telefonoNegocio;
+  $('dialogo-pedir-guardar').showModal();
+}
+
+/** Abre WhatsApp con el pedido (lo envía la persona) y anota la fecha. */
+async function enviarPedirGuardar() {
+  const c = clientePorId(estado.clienteAbierto);
+  const texto = $('pg-mensaje').value.trim();
+  if (!c || !texto) return;
+  abrirWhatsApp(c.telefono, texto);
+  try {
+    await guardarCambios({ clientes: [{ ...c, pidioGuardarFecha: hoyTexto() }] });
+    redibujar();
+  } catch (error) { console.error(error); }
+}
+
+/** Comparte la tarjeta de contacto (.vcf) del negocio; si no se puede, la descarga. */
+async function compartirTarjeta() {
+  const a = estado.compartidos;
+  if (!a.telefonoNegocio) return;
+  const vcf = TucankitCore.crearVCard({ negocio: a.negocio, atiende: a.atiende, telefono: a.telefonoNegocio, direccion: a.direccion });
+  const nombre = `${(a.negocio || 'contacto').replace(/[^\p{L}\p{N} _-]/gu, '').trim() || 'contacto'}.vcf`;
+  const archivo = new File([vcf], nombre, { type: 'text/vcard' });
+  if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
+    try {
+      await navigator.share({ files: [archivo] });
+      avisar(t('tarjetaCompartida'));
+    } catch (error) {
+      if (error && error.name !== 'AbortError') { console.warn(error); avisar(t('compartirNoSePudo'), 5); }
+    }
+    return;
+  }
+  descargarBytes(new TextEncoder().encode(vcf), nombre, 'text/vcard');
+  await confirmar({ titulo: t('pedirGuardarTarjeta'), texto: t('tarjetaDescargada'), botonSi: t('entendido'), peligroso: false, soloAviso: true });
+}
+
+/**
+ * Una sola vez por dispositivo: copia automática antes de empezar a guardar
+ * los permisos de novedades en los clientes (regla 7 de CLAUDE.md).
+ * Los clientes que ya existían quedan como "no aceptó"; no se cambia nada más.
+ */
+async function guardarCopiaAntesDePermisos() {
+  if (estado.locales.copiaPermisosHecha) return;
+  try {
+    if (clientesActivos().length) await guardarCopiaAuto('permisos');
+    await guardarLocales({ copiaPermisosHecha: true });
+  } catch (error) { console.error(error); }
+}
+
 /** Abre la ficha de un cliente con su historial. */
 function abrirFicha(id) {
   estado.clienteAbierto = id;
@@ -1603,6 +1766,7 @@ function dibujarFicha() {
   $('ficha-etiquetas').replaceChildren(...chipsEtiquetas(c).childNodes);
   $('ficha-nota').textContent = c.nota;
   $('ficha-nota').hidden = !c.nota;
+  dibujarPermisos(c);
 
   // Historial: lo más nuevo primero
   const historial = $('ficha-historial');
@@ -1622,6 +1786,10 @@ function abrirFormularioCliente(cliente = null) {
   $('cli-telefono').value = cliente ? '+' + cliente.telefono : '';
   $('cli-nota').value = cliente ? cliente.nota : '';
   $('cli-etiqueta-nueva').value = '';
+  const permisos = permisosDe(cliente || {});
+  $('cli-novedades').checked = permisos.aceptaNovedades;
+  $('cli-guardo').checked = permisos.guardoNumero;
+  dibujarFechasCasillas();
   ['clinombre', 'clitelefono'].forEach((c) => marcarError(c, ''));
   actualizarNumeroFinal('cli-telefono', 'cli-numero-final');
   dibujarEtiquetasFormulario();
@@ -1673,12 +1841,21 @@ async function guardarFormularioCliente(evento) {
   if (!nombre || !telefonoValido(telefono) || repetido) return;
 
   const anterior = clientePorId(estado.editandoClienteId);
+  // Permisos: la fecha cambia solo si la casilla cambió
+  const antes = permisosDe(anterior || {});
+  const novedades = $('cli-novedades').checked;
+  const guardo = $('cli-guardo').checked;
   const cliente = {
     ...(anterior || { id: nuevoId(), creadoEn: Date.now() }),
     nombre,
     telefono,
     nota: $('cli-nota').value.trim(),
-    etiquetaIds: [...estado.cliEtiquetaIds]
+    etiquetaIds: [...estado.cliEtiquetaIds],
+    ...antes,
+    aceptaNovedades: novedades,
+    novedadesFecha: novedades === antes.aceptaNovedades ? antes.novedadesFecha : hoyTexto(),
+    guardoNumero: guardo,
+    guardoNumeroFecha: guardo ? (antes.guardoNumero ? antes.guardoNumeroFecha : hoyTexto()) : ''
   };
   const nuevasUsadas = estado.cliEtiquetasNuevas.filter((e) => cliente.etiquetaIds.includes(e.id));
   try {
@@ -1934,6 +2111,13 @@ function mensajeDeGrupo(cliente) {
 
 function dibujarGrupos() {
   const g = estado.locales.envioGrupo;
+  const difusion = g.modo === 'difusion';
+  document.querySelectorAll('.segmentado [data-modo]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.modo === g.modo)));
+  $('grupo-uno').hidden = difusion;
+  $('grupo-lista').hidden = difusion;
+  $('grupo-difusion').hidden = !difusion;
+  $('difusion-tandas').hidden = !difusion;
+  document.querySelector('#vista-grupos .vista-previa-titulo').textContent = t(difusion ? 'vistaPreviaDifusion' : 'vistaPreviaPrimero');
   // 1. Elegir grupo
   const elegir = $('grupo-etiquetas');
   elegir.replaceChildren();
@@ -1968,6 +2152,7 @@ function dibujarGrupos() {
     if (siguiente) boton.textContent = t('grupoEnviarA', { nombre: siguiente.nombre, numero: enviados + 1, total: clientes.length });
   }
   $('grupo-reiniciar').hidden = !enviados;
+  if (difusion) { dibujarDifusion(clientes); return; }
 
   // Lista con el estado de cada uno
   const lista = $('grupo-lista');
@@ -2022,6 +2207,89 @@ function dibujarElegiblesGrupo() {
       });
       lista.append(fila);
     });
+}
+
+/* ---------------------------------------------------------
+   Difusión de WhatsApp: la app NO crea la lista ni envía.
+   Solo muestra el mensaje para copiar, los clientes con permiso
+   (en tandas de 256) y una guía paso a paso.
+   --------------------------------------------------------- */
+
+/** Mensaje de difusión: igual para todos (sin {nombre}). */
+function mensajeDeDifusion() {
+  return mensajeDeGrupo({ nombre: '' }).replace(/^[ \t]*[,;:][ \t]*/gm, '').trim();
+}
+
+function dibujarDifusion(clientes) {
+  const conPermiso = clientes.filter((c) => permisosDe(c).aceptaNovedades);
+  const excluidos = clientes.length - conPermiso.length;
+  const tandas = TucankitCore.dividirEnTandas(conPermiso);
+  $('grupo-vista-previa').textContent = mensajeDeDifusion();
+  $('difusion-aviso-nombre').hidden = !/\{nombre\}/.test(estado.locales.envioGrupo.mensaje);
+  let resumen = '';
+  if (!estado.locales.envioGrupo.grupo) resumen = t('grupoElegir');
+  else if (!conPermiso.length) resumen = t('difusionNadie');
+  else resumen = t(tandas.length === 1 ? 'difusionResumenUna' : 'difusionResumen', { incluidos: conPermiso.length, listas: tandas.length });
+  if (excluidos && estado.locales.envioGrupo.grupo) resumen += ' ' + t(excluidos === 1 ? 'difusionResumenExcluidoUno' : 'difusionResumenExcluidos', { excluidos });
+  $('difusion-resumen').textContent = resumen;
+
+  const contenedor = $('difusion-tandas');
+  contenedor.replaceChildren();
+  if (conPermiso.some((c) => !permisosDe(c).guardoNumero)) contenedor.append(crear('p', 'ayuda', t('difusionAvisoGuardo')));
+  tandas.forEach((tanda, i) => {
+    const caja = crear('div', 'tarjeta difusion-tanda');
+    const cabeza = crear('div', 'fila-titulo');
+    cabeza.append(crear('h3', '', t('difusionLista', { numero: i + 1, cantidad: tanda.length })));
+    const copiar = crear('button', 'enlace', t('difusionCopiarNombres'));
+    copiar.type = 'button';
+    copiar.addEventListener('click', () => copiarTexto(
+      tanda.map((c) => `${c.nombre} – ${formatearTelefono(c.telefono, estado.compartidos.codigoPais)}`).join('\n'), t('difusionNombresCopiados')));
+    cabeza.append(copiar);
+    const lista = crear('div', 'lista lista-compacta');
+    tanda.forEach((c) => {
+      const fila = crear('div', 'cliente-fila cliente-fila-estatica');
+      const texto = crear('div', 'cliente-fila-texto');
+      texto.append(crear('strong', '', (permisosDe(c).guardoNumero ? '' : '⚠️ ') + c.nombre),
+        crear('small', '', formatearTelefono(c.telefono, estado.compartidos.codigoPais)));
+      fila.append(texto);
+      lista.append(fila);
+    });
+    caja.append(cabeza, lista);
+    contenedor.append(caja);
+  });
+}
+
+/** Copia un texto al portapapeles (sin internet). */
+async function copiarTexto(texto, aviso) {
+  try {
+    await navigator.clipboard.writeText(texto);
+    avisar(aviso);
+  } catch (error) {
+    // Plan B para navegadores viejos: seleccionar y copiar
+    const area = crear('textarea', '');
+    area.value = texto;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed'; area.style.opacity = '0';
+    document.body.append(area);
+    area.select();
+    const ok = document.execCommand && document.execCommand('copy');
+    area.remove();
+    avisar(ok ? aviso : t('difusionNoCopio'), ok ? 2.6 : 5);
+  }
+}
+
+function mostrarReglasDifusion() {
+  return confirmar({ titulo: t('difusionReglasTitulo'), texto: t('difusionReglasTexto'), botonSi: t('entendido'), peligroso: false, soloAviso: true });
+}
+
+/** Cambia entre "uno por uno" y "difusión". La primera vez muestra las reglas. */
+async function cambiarModoGrupo(modo) {
+  if (modo === 'difusion' && !estado.locales.avisoDifusionVisto) {
+    await mostrarReglasDifusion();
+    await guardarLocales({ avisoDifusionVisto: true });
+  }
+  await guardarLocales({ envioGrupo: { ...estado.locales.envioGrupo, modo } });
+  dibujarGrupos();
 }
 
 /** Envía al cliente indicado (un toque = un mensaje) y lo marca como hecho. */
@@ -2430,13 +2698,13 @@ function descargarBytes(bytes, nombre, tipo) {
 }
 
 const TIPO_XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-const ANCHOS_EXCEL = [32, 22, 40, 28];
+const ANCHOS_EXCEL = [32, 22, 40, 28, 18];
 
 /** Hoja de instrucciones que va dentro de la plantilla. */
 const hojaInstrucciones = () => ({ nombre: 'Instrucciones', filas: t('plantillaInstrucciones').map((linea) => [linea]), anchos: [110] });
 
 function descargarPlantilla() {
-  const filas = [TucankitExcel.COLUMNAS, [t('plantillaEjemplo'), '8888 1111', t('plantillaEjemploNota'), t('plantillaEjemploEtiquetas')]];
+  const filas = [TucankitExcel.COLUMNAS, [t('plantillaEjemplo'), '8888 1111', t('plantillaEjemploNota'), t('plantillaEjemploEtiquetas'), 'Sí']];
   descargarBytes(TucankitExcel.crearXlsx([{ nombre: 'Clientes', filas, anchos: ANCHOS_EXCEL }, hojaInstrucciones()]),
     'tucankit-plantilla-clientes.xlsx', TIPO_XLSX);
   avisar(t('excelDescargado'));
@@ -2500,7 +2768,10 @@ async function importarClientesExcel(archivo) {
   const ahora = Date.now();
   const registros = nuevos.map((c) => ({
     id: nuevoId(), creadoEn: ahora, nombre: c.nombre, telefono: c.telefono, nota: c.nota,
-    etiquetaIds: [...new Set(c.etiquetas.map(idDeEtiqueta))]
+    etiquetaIds: [...new Set(c.etiquetas.map(idDeEtiqueta))],
+    ...permisosDe({}),
+    aceptaNovedades: c.aceptaNovedades,
+    novedadesFecha: c.aceptaNovedades ? hoyTexto() : ''
   }));
   try {
     await guardarCopiaAuto('importar');
@@ -2589,6 +2860,7 @@ function validarPaquete(paquete) {
     return {
       id: c.id, nombre: c.nombre.trim(), telefono: c.telefono, nota: textoO(c.nota),
       etiquetaIds: Array.isArray(c.etiquetaIds) ? c.etiquetaIds.filter((x) => typeof x === 'string') : [],
+      ...permisosDe(c),
       creadoEn: numeroO(c.creadoEn) || ahora, ...metaDe(c, disp, ahora)
     };
   });
@@ -3343,6 +3615,12 @@ function conectarEventos() {
   $('ficha-recordatorio').addEventListener('click', () => abrirFormularioRecordatorio(null, estado.clienteAbierto));
   $('ficha-whatsapp').addEventListener('click', () => { const c = clientePorId(estado.clienteAbierto); if (c) abrirWhatsApp(c.telefono, ''); });
   $('ficha-editar').addEventListener('click', () => abrirFormularioCliente(clientePorId(estado.clienteAbierto)));
+  $('ficha-pedir-guardar').addEventListener('click', abrirPedirGuardar);
+  $('pg-whatsapp').addEventListener('click', enviarPedirGuardar);
+  $('pg-tarjeta').addEventListener('click', compartirTarjeta);
+  $('pg-cerrar').addEventListener('click', () => $('dialogo-pedir-guardar').close());
+  $('cli-novedades').addEventListener('change', dibujarFechasCasillas);
+  $('cli-guardo').addEventListener('change', dibujarFechasCasillas);
   $('ficha-eliminar').addEventListener('click', eliminarCliente);
   $('form-cliente').addEventListener('submit', guardarFormularioCliente);
   $('cli-cancelar').addEventListener('click', () => $('dialogo-cliente').close());
@@ -3357,6 +3635,12 @@ function conectarEventos() {
   });
   $('grupo-mensaje').addEventListener('change', () => guardarLocales({}).catch(console.error));
   $('grupo-siguiente').addEventListener('click', enviarSiguienteDelGrupo);
+  document.querySelectorAll('.segmentado [data-modo]').forEach((b) => b.addEventListener('click', () => cambiarModoGrupo(b.dataset.modo)));
+  $('difusion-copiar').addEventListener('click', () => {
+    if (!estado.locales.envioGrupo.mensaje.trim()) { avisar(t('grupoErrorMensaje')); return; }
+    copiarTexto(mensajeDeDifusion(), t('difusionCopiado'));
+  });
+  $('difusion-reglas').addEventListener('click', mostrarReglasDifusion);
   $('grupo-reiniciar').addEventListener('click', () => cambiarGrupo(estado.locales.envioGrupo.grupo));
   const variablesGrupo = $('grupo-variables');
   VARIABLES_COMUNES.forEach((nombre) => {
@@ -3489,6 +3773,7 @@ async function iniciar() {
   mostrarVista('agenda');
   iniciarDrive();
   if (!estado.locales.bienvenidaVista) abrirBienvenida(0);
+  guardarCopiaAntesDePermisos();
 }
 
 iniciar();

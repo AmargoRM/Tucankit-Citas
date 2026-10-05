@@ -606,6 +606,44 @@
   }
 
   /* ---------- Lo que este archivo ofrece hacia afuera ---------- */
+
+  /* ---------------------------------------------------------
+     Difusión y tarjeta de contacto
+     --------------------------------------------------------- */
+
+  /** WhatsApp permite hasta 256 contactos por lista de difusión. */
+  const MAX_POR_DIFUSION = 256;
+
+  /** Divide una lista en tandas (por defecto de 256). */
+  function dividirEnTandas(lista, tamano = MAX_POR_DIFUSION) {
+    const tandas = [];
+    for (let i = 0; i < lista.length; i += tamano) tandas.push(lista.slice(i, i + tamano));
+    return tandas;
+  }
+
+  /** Escapa un texto para una tarjeta de contacto (vCard). */
+  const escaparVCard = (texto) => String(texto || '').replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/([,;])/g, '\\$1');
+
+  /**
+   * Arma una tarjeta de contacto (.vcf, formato vCard 3.0) del negocio.
+   * datos: { negocio, atiende, telefono (solo dígitos, con código de país), direccion }
+   */
+  function crearVCard({ negocio, atiende, telefono, direccion }) {
+    const nombre = negocio || atiende || 'Tucankit';
+    const lineas = [
+      'BEGIN:VCARD',
+      'VERSION:3.0',
+      `N:;${escaparVCard(nombre)};;;`,
+      `FN:${escaparVCard(nombre)}`
+    ];
+    if (negocio) lineas.push(`ORG:${escaparVCard(negocio)}`);
+    if (atiende && negocio) lineas.push(`NOTE:${escaparVCard(`Atiende: ${atiende}`)}`);
+    lineas.push(`TEL;TYPE=CELL:+${String(telefono || '').replace(/\D/g, '')}`);
+    if (direccion) lineas.push(`ADR;TYPE=WORK:;;${escaparVCard(direccion)};;;;`);
+    lineas.push('END:VCARD');
+    return lineas.join('\r\n') + '\r\n';
+  }
+
   const TucankitCore = {
     IDIOMAS,
     usarIdioma,
@@ -648,6 +686,9 @@
     formatearTelefono,
     enlaceWhatsApp,
     esCelular,
+    MAX_POR_DIFUSION,
+    dividirEnTandas,
+    crearVCard,
     DIAS_GUARDAR_BORRADOS,
     COLECCIONES,
     sellar,

@@ -158,5 +158,16 @@ async function prueba(nombre, fn) {
     assert.ok(C.enlaceWhatsApp('506', 'x', 'escritorio').startsWith('whatsapp://send?phone=506&text='));
   });
 
+  await prueba('difusión: tandas de 256 y tarjeta de contacto', () => {
+    assert.deepEqual(C.dividirEnTandas([...Array(600).keys()]).map((t) => t.length), [256, 256, 88]);
+    assert.deepEqual(C.dividirEnTandas([]), []);
+    const vcf = C.crearVCard({ negocio: 'Tienda Bella, S.A.', atiende: 'Laura', telefono: '50688881111', direccion: 'Calle 5; centro' });
+    assert.ok(vcf.startsWith('BEGIN:VCARD\r\nVERSION:3.0\r\n'));
+    assert.ok(vcf.includes('FN:Tienda Bella\\, S.A.\r\n'));
+    assert.ok(vcf.includes('TEL;TYPE=CELL:+50688881111\r\n'));
+    assert.ok(vcf.includes('ADR;TYPE=WORK:;;Calle 5\\; centro;;;;'));
+    assert.ok(vcf.endsWith('END:VCARD\r\n'));
+  });
+
   console.log(`\n${pasadas} pruebas pasaron.`);
 })();

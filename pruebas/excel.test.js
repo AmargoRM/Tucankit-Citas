@@ -36,7 +36,7 @@ const convertir = (filas) => X.filasAClientes(filas, '506', C.normalizarTelefono
 
 (async () => {
   await prueba('crear y volver a leer un Excel (.xlsx)', async () => {
-    const filas = [X.COLUMNAS, ['Ana <Pérez> & Cía', '+506 8888 1111', 'Nota "con" comillas', 'VIP, Zapatos']];
+    const filas = [X.COLUMNAS, ['Ana <Pérez> & Cía', '+506 8888 1111', 'Nota "con" comillas', 'VIP, Zapatos', 'Sí']];
     const bytes = X.crearXlsx([{ nombre: 'Clientes', filas }, { nombre: 'Instrucciones', filas: [['Hola']] }]);
     const leidas = await X.leerArchivo(bytes, 'clientes.xlsx');
     assert.deepEqual(leidas, filas);
@@ -88,10 +88,21 @@ const convertir = (filas) => X.filasAClientes(filas, '506', C.normalizarTelefono
   });
 
   await prueba('descargar clientes y volver a importarlos da lo mismo', async () => {
-    const originales = [{ nombre: 'Ana', telefono: '50688881111', nota: 'x', etiquetas: ['VIP'] }];
+    const originales = [
+      { nombre: 'Ana', telefono: '50688881111', nota: 'x', etiquetas: ['VIP'], aceptaNovedades: true },
+      { nombre: 'Beto', telefono: '50688882222', nota: '', etiquetas: [], aceptaNovedades: false }
+    ];
     const bytes = X.crearXlsx([{ nombre: 'Clientes', filas: X.clientesAFilas(originales) }]);
     const { clientes } = convertir(await X.leerArchivo(bytes, 'a.xlsx'));
     assert.deepEqual(clientes.map(({ fila, ...c }) => c), originales);
+  });
+
+  await prueba('columna «Acepta novedades»: Sí, x, vacío y No', () => {
+    const { clientes } = convertir([
+      ['Nombre', 'Teléfono', 'Acepta novedades'],
+      ['Ana', '88881111', 'Sí'], ['Beto', '88882222', 'x'], ['Caro', '88883333', ''], ['Dani', '88884444', 'No']
+    ]);
+    assert.deepEqual(clientes.map((c) => c.aceptaNovedades), [true, true, false, false]);
   });
 
   console.log(`\n${pasadas} pruebas pasaron.`);
