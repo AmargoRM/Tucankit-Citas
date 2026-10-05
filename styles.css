@@ -726,3 +726,19 @@ button.cita-nombre {
 .barra-guardar-texto { color: var(--texto-suave); font-size: .9rem; font-weight: 600; }
 .barra-guardar.sin-guardar { border-color: var(--acento); background: var(--acento-fondo); }
 .barra-guardar.sin-guardar .barra-guardar-texto { color: #8a4b00; }
+
+/* Servicios y productos */
+.fila-producto { display: grid; grid-template-columns: 1fr 110px auto; gap: 8px; margin-top: 10px; }
+.fila-producto input {
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1.5px solid var(--borde);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 16px;
+}
+.fichas-productos { margin-top: -6px; }
+.fichas-productos .ficha { min-height: 36px; font-size: .85rem; }
+.producto-precio { color: var(--texto-suave); font-weight: 600; }
+.enlace-fila { flex: 1; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }

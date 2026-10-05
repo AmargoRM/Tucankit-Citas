@@ -10,6 +10,7 @@
      5. Agenda: lista de recordatorios y pestañas
      6. Formulario de recordatorio
      7. Clientes, ficha e historial
+    7b. Servicios y productos
      8. Envío a WhatsApp y estados de respuesta
      9. Envío en fila a un grupo
     10. Ajustes, plantillas y constructor con clics
@@ -350,6 +351,18 @@ const TEXTOS = {
     driveDesconectarTitulo: '¿Dejar de sincronizar?',
     driveDesconectarTexto: 'Este dispositivo deja de sincronizar. Sus datos aquí NO se borran.\n\nEl archivo «Tucankit Citas - sincronizacion.json» queda en su Google Drive; si quiere, puede borrarlo desde drive.google.com.',
 
+    // Servicios y productos
+    productosTitulo: 'Servicios y productos',
+    productosExplicacion: 'Su lista para elegir con un toque al crear un recordatorio, en vez de escribir. El precio es opcional: en un cobro se suma solo al monto. Se guarda al instante.',
+    ejemploProducto: 'Ej.: Corte de cabello',
+    ejemploPrecio: 'Precio',
+    productosVacio: 'Todavía no hay servicios ni productos.',
+    guardarCambio: 'Guardar cambio',
+    errorProducto: 'Escriba el nombre del servicio o producto.',
+    productoRepetido: 'Ya está en la lista.',
+    confirmarEliminarProducto: '¿Quitar «{nombre}» de la lista?',
+    productoEliminarTexto: 'Los recordatorios que ya lo usan no cambian.',
+
     // Avisos
     avisoActualizacion: 'Hay una versión nueva. Toque para actualizar.',
     avisoNegocio: 'Complete en Ajustes el nombre de su negocio y su país, para que los mensajes y los teléfonos salgan bien.',
@@ -478,7 +491,7 @@ function marcarError(campo, mensaje) {
    se reorganiza solo (ver migrarDesdeV1).
    ========================================================= */
 const BD_NOMBRE = 'tucankit-citas';
-const BD_VERSION = 2;
+const BD_VERSION = 3; // 3: se agregó el cajón "productos" (servicios y productos)
 const MAX_COPIAS_AUTO = 5;
 let bd = null;
 
@@ -671,7 +684,7 @@ function migrarDesdeV1(citas, ajustesV1, dispositivoId, ahora = Date.now()) {
     primerUso: typeof a.primerUso === 'number' ? a.primerUso : ahora,
     ayudaIphoneOculta: a.ayudaIphoneOculta === true
   };
-  return { clientes: [...clientesPorTelefono.values()], recordatorios, etiquetas: [], compartidos, locales };
+  return { clientes: [...clientesPorTelefono.values()], recordatorios, etiquetas: [], productos: [], compartidos, locales };
 }
 
 /** Abre la base de datos y, si viene de la versión 1, la reorganiza. */
@@ -684,7 +697,23 @@ function abrirBD() {
     pedido.onupgradeneeded = (evento) => {
       const base = pedido.result;
       const tx = pedido.transaction;
-      ['clientes', 'recordatorios', 'etiquetas'].forEach((nombre) => {
+      // Venía de la versión 2: copia automática ANTES de agregar el cajón nuevo
+      if (evento.oldVersion === 2) {
+        const pedidos = ['clientes', 'recordatorios', 'etiquetas'].map((n) => tx.objectStore(n).getAll());
+        const pedidoComp = tx.objectStore('ajustes').get('compartidos');
+        pedidoComp.onsuccess = () => {
+          const ahora = Date.now();
+          const [clientes, recordatorios, etiquetas] = pedidos.map((x) => x.result || []);
+          const ajustes = { ...(pedidoComp.result || {}) };
+          delete ajustes.clave;
+          tx.objectStore('copiasAuto').put({
+            id: ahora, creadaEn: ahora, motivo: 'migracion', formato: 2,
+            datos: { app: 'tucankit-citas', version: 2, creada: ahora, datos: { clientes, recordatorios, etiquetas, productos: [], ajustes } },
+            cantidad: recordatorios.filter((r) => !r.borradoEn).length
+          });
+        };
+      }
+      TucankitCore.COLECCIONES.forEach((nombre) => {
         if (!base.objectStoreNames.contains(nombre)) base.createObjectStore(nombre, { keyPath: 'id' });
       });
       if (!base.objectStoreNames.contains('ajustes')) base.createObjectStore('ajustes', { keyPath: 'clave' });
@@ -752,13 +781,14 @@ async function guardarVariosBD(cambios) {
 }
 
 /** Reemplaza los cajones de datos por los indicados (usado tras una mezcla). */
-async function escribirDatosBD({ clientes, recordatorios, etiquetas, compartidos }) {
-  const tx = bd.transaction(['clientes', 'recordatorios', 'etiquetas', 'ajustes'], 'readwrite');
-  [['clientes', clientes], ['recordatorios', recordatorios], ['etiquetas', etiquetas]].forEach(([cajon, lista]) => {
+async function escribirDatosBD(datos) {
+  const tx = bd.transaction([...TucankitCore.COLECCIONES, 'ajustes'], 'readwrite');
+  TucankitCore.COLECCIONES.forEach((cajon) => {
     const store = tx.objectStore(cajon);
     store.clear();
-    lista.forEach((r) => store.put(r));
+    (datos[cajon] || []).forEach((r) => store.put(r));
   });
+  const compartidos = datos.compartidos;
   tx.objectStore('ajustes').put({ ...compartidos, clave: 'compartidos' });
   await esperarTransaccion(tx);
 }
@@ -774,6 +804,7 @@ const estado = {
   clientes: [],          // incluye los borrados (marcados); la pantalla muestra solo activos
   recordatorios: [],
   etiquetas: [],
+  productos: [],          // servicios y productos (lista preestablecida)
   compartidos: compartidosPorDefecto(),
   locales: localesPorDefecto(),
   vista: 'agenda',
@@ -1083,6 +1114,7 @@ function abrirFormularioRecordatorio(r = null, clienteId = null) {
   dibujarTiposFormulario();
   aplicarTipoAlFormulario();
   dibujarClienteFormulario();
+  dibujarProductosFormulario();
   $('dialogo-recordatorio').showModal();
 }
 
@@ -1099,6 +1131,7 @@ function dibujarTiposFormulario() {
       estado.recTipo = tipo;
       dibujarTiposFormulario();
       aplicarTipoAlFormulario();
+      dibujarProductosFormulario();
     });
     contenedor.append(b);
   });
@@ -1425,6 +1458,111 @@ async function eliminarCliente() {
 }
 
 /* =========================================================
+   7b. SERVICIOS Y PRODUCTOS (lista preestablecida)
+   Se eligen con un toque al crear un recordatorio. Si tienen precio,
+   en un cobro se suma solo al monto. Se sincronizan como los clientes.
+   ========================================================= */
+const productosActivos = () => estado.productos.filter(estaActivo)
+  .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+
+/** Lista de productos en Ajustes (tocar = editar; × = eliminar). */
+function dibujarProductos() {
+  const lista = $('lista-productos');
+  lista.replaceChildren();
+  const productos = productosActivos();
+  if (!productos.length) lista.append(crear('p', 'ayuda', t('productosVacio')));
+  productos.forEach((x) => {
+    const fila = crear('div', 'cliente-fila cliente-fila-estatica');
+    const texto = crear('button', 'cliente-fila-texto enlace-fila');
+    texto.type = 'button';
+    texto.append(crear('strong', '', x.nombre));
+    if (x.precio != null) texto.append(crear('small', 'producto-precio', monto(x.precio)));
+    texto.addEventListener('click', () => {
+      estado.editandoProductoId = x.id;
+      $('producto-nombre').value = x.nombre;
+      $('producto-precio').value = x.precio != null ? formatearMonto(x.precio, '', idiomaMontos()) : '';
+      $('producto-agregar').textContent = t('guardarCambio');
+      $('producto-nombre').focus();
+    });
+    const quitar = crear('button', 'boton boton-fantasma-peligro boton-chico', '×');
+    quitar.type = 'button';
+    quitar.setAttribute('aria-label', t('eliminar'));
+    quitar.addEventListener('click', () => eliminarProducto(x));
+    fila.append(texto, quitar);
+    lista.append(fila);
+  });
+}
+
+/** Agrega un producto nuevo o guarda el que se está editando. */
+async function guardarProducto() {
+  const nombre = $('producto-nombre').value.trim().slice(0, 80);
+  if (!nombre) { avisar(t('errorProducto')); $('producto-nombre').focus(); return; }
+  const repetido = productosActivos().find((x) => paraBuscar(x.nombre) === paraBuscar(nombre) && x.id !== estado.editandoProductoId);
+  if (repetido) { avisar(t('productoRepetido')); return; }
+  const textoPrecio = $('producto-precio').value.trim();
+  const precio = textoPrecio ? leerMonto(textoPrecio, idiomaMontos()) : null;
+  const anterior = estado.productos.find((x) => x.id === estado.editandoProductoId);
+  try {
+    await guardarCambios({ productos: [{ ...(anterior || { id: nuevoId() }), nombre, precio }] });
+    estado.editandoProductoId = null;
+    $('producto-nombre').value = '';
+    $('producto-precio').value = '';
+    $('producto-agregar').textContent = t('agregar');
+    dibujarProductos();
+    avisar(t('guardado'));
+  } catch (error) {
+    console.error(error);
+    mostrarError(t('errorGuardar'));
+  }
+}
+
+async function eliminarProducto(x) {
+  const seguro = await confirmar({ titulo: t('confirmarEliminarProducto', { nombre: x.nombre }), texto: t('productoEliminarTexto'), botonSi: t('siEliminar') });
+  if (!seguro) return;
+  await guardarCambios({ productos: [x] }, { borrar: true });
+  dibujarProductos();
+}
+
+/** Partes del campo "detalle", separadas por coma. */
+const partesDetalle = () => $('rec-detalle').value.split(',').map((x) => x.trim()).filter(Boolean);
+
+/** Botones de productos dentro del formulario de recordatorio. */
+function dibujarProductosFormulario() {
+  const productos = productosActivos();
+  const contenedor = $('rec-productos');
+  contenedor.replaceChildren();
+  contenedor.hidden = !productos.length;
+  const elegidos = partesDetalle().map(paraBuscar);
+  productos.forEach((x) => {
+    const texto = x.precio != null && estado.recTipo === 'cobro' ? `${x.nombre} · ${monto(x.precio)}` : x.nombre;
+    const b = crear('button', 'ficha', texto);
+    b.type = 'button';
+    b.setAttribute('aria-pressed', String(elegidos.includes(paraBuscar(x.nombre))));
+    b.addEventListener('click', () => alTocarProducto(x));
+    contenedor.append(b);
+  });
+  $('sugerencias-productos').replaceChildren(...productos.map((x) => new Option(x.nombre)));
+}
+
+/**
+ * Tocar un producto lo agrega al detalle (o lo quita si ya estaba).
+ * En un cobro, su precio se suma (o se resta) del monto.
+ */
+function alTocarProducto(x) {
+  const partes = partesDetalle();
+  const i = partes.findIndex((p) => paraBuscar(p) === paraBuscar(x.nombre));
+  const agregar = i < 0;
+  if (agregar) partes.push(x.nombre); else partes.splice(i, 1);
+  $('rec-detalle').value = partes.join(', ');
+  if (estado.recTipo === 'cobro' && x.precio != null) {
+    const actual = leerMonto($('rec-monto').value, idiomaMontos()) || 0;
+    const nuevo = Math.max(0, actual + (agregar ? x.precio : -x.precio));
+    $('rec-monto').value = nuevo ? formatearMonto(nuevo, '', idiomaMontos()) : '';
+  }
+  dibujarProductosFormulario();
+}
+
+/* =========================================================
    8. ENVÍO A WHATSAPP Y ESTADOS DE RESPUESTA
    La app NO envía mensajes sola: abre WhatsApp con el mensaje
    escrito y la persona toca "enviar" (regla 4 de CLAUDE.md).
@@ -1636,7 +1774,7 @@ function redibujar() {
   else if (estado.vista === 'clientes') dibujarClientes();
   else if (estado.vista === 'cliente') dibujarFicha();
   else if (estado.vista === 'grupos') dibujarGrupos();
-  else if (estado.vista === 'ajustes') dibujarCopiasAuto();
+  else if (estado.vista === 'ajustes') { dibujarCopiasAuto(); dibujarProductos(); }
   revisarAvisos();
 }
 
@@ -1669,6 +1807,9 @@ function cargarFormularioAjustes() {
   dibujarEditorPlantilla();
   mostrarUltimaCopia();
   dibujarCopiasAuto();
+  estado.editandoProductoId = null;
+  $('producto-agregar').textContent = t('agregar');
+  dibujarProductos();
 }
 
 /** Lista de países para elegir (con bandera y código). */
@@ -1882,6 +2023,7 @@ function paqueteDatos() {
       clientes: estado.clientes,
       recordatorios: estado.recordatorios,
       etiquetas: estado.etiquetas,
+      productos: estado.productos,
       ajustes: estado.compartidos
     }
   };
@@ -1940,13 +2082,18 @@ function validarPaquete(paquete) {
     });
     // Se fechan con el día de la copia (no "ahora") para que, al mezclar, no le ganen a cambios más nuevos
     const m = migrarDesdeV1(paquete.citas, paquete.ajustes || {}, idDispositivo(), numeroO(paquete.creada) || 1);
-    return { clientes: m.clientes, recordatorios: m.recordatorios, etiquetas: [], ajustes: m.compartidos, creada: numeroO(paquete.creada) };
+    return { clientes: m.clientes, recordatorios: m.recordatorios, etiquetas: [], productos: [], ajustes: m.compartidos, creada: numeroO(paquete.creada) };
   }
 
   if (paquete.version !== 2 || !paquete.datos || typeof paquete.datos !== 'object') throw new Error('Versión desconocida');
   const d = paquete.datos;
   ['clientes', 'recordatorios', 'etiquetas'].forEach((k) => { if (!Array.isArray(d[k])) throw new Error(`Faltan ${k}`); });
 
+  // Productos: las copias anteriores no los tienen (lista vacía)
+  const productos = (Array.isArray(d.productos) ? d.productos : []).map((x, i) => {
+    if (!x || typeof x.id !== 'string' || typeof x.nombre !== 'string') throw new Error(`Producto ${i + 1} incompleto`);
+    return { id: x.id, nombre: x.nombre.trim().slice(0, 80), precio: numeroO(x.precio), ...metaDe(x, disp, ahora) };
+  });
   const etiquetas = d.etiquetas.map((e, i) => {
     if (!e || typeof e.id !== 'string' || typeof e.nombre !== 'string') throw new Error(`Etiqueta ${i + 1} incompleta`);
     return { id: e.id, nombre: e.nombre.trim().slice(0, 30), ...metaDe(e, disp, ahora) };
@@ -1974,7 +2121,7 @@ function validarPaquete(paquete) {
       creadoEn: numeroO(r.creadoEn) || ahora, ...metaDe(r, disp, ahora)
     };
   });
-  return { clientes, recordatorios, etiquetas, ajustes: normalizarCompartidos(d.ajustes || {}), creada: numeroO(paquete.creada) };
+  return { clientes, recordatorios, etiquetas, productos, ajustes: normalizarCompartidos(d.ajustes || {}), creada: numeroO(paquete.creada) };
 }
 
 /** Guarda una copia automática de los datos actuales (se conservan las últimas 5). */
@@ -1998,12 +2145,13 @@ async function guardarCopiaAuto(motivo) {
  */
 async function aplicarMezcla(remoto, motivo) {
   await guardarCopiaAuto(motivo);
-  const local = { clientes: estado.clientes, recordatorios: estado.recordatorios, etiquetas: estado.etiquetas, ajustes: estado.compartidos };
+  const local = { ...datosLocalesParaMezcla() };
   const remotoLimpio = { ...remoto, ajustes: remoto.ajustes };
   const { datos, resumen } = mezclarDatos(local, remotoLimpio, CLAVES_COMPARTIDAS);
   const compartidos = normalizarCompartidos(datos.ajustes);
   await escribirDatosBD({ ...datos, compartidos });
-  Object.assign(estado, { clientes: datos.clientes, recordatorios: datos.recordatorios, etiquetas: datos.etiquetas, compartidos });
+  TucankitCore.COLECCIONES.forEach((k) => { estado[k] = datos[k]; });
+  estado.compartidos = compartidos;
   return resumen;
 }
 
@@ -2019,7 +2167,7 @@ async function imponerDatos(objetivo, motivo) {
   const disp = idDispositivo();
   const resumen = { agregados: 0, actualizados: 0, borrados: 0 };
   const resultado = {};
-  ['clientes', 'recordatorios', 'etiquetas'].forEach((k) => {
+  TucankitCore.COLECCIONES.forEach((k) => {
     const actuales = new Map(estado[k].map((r) => [r.id, r]));
     const nuevos = new Map((objetivo[k] || []).map((r) => [r.id, { ...r, actualizadoEn: ahora, dispositivoId: disp }]));
     nuevos.forEach((r, id) => {
@@ -2052,9 +2200,9 @@ async function imponerDatos(objetivo, motivo) {
 function prepararCopiaParaRecuperar(copia) {
   const ahora = Date.now();
   const resultado = { ...copia };
-  ['clientes', 'recordatorios', 'etiquetas'].forEach((k) => {
+  TucankitCore.COLECCIONES.forEach((k) => {
     const locales = new Map(estado[k].map((r) => [r.id, r]));
-    resultado[k] = copia[k].map((r) => {
+    resultado[k] = (copia[k] || []).map((r) => {
       const local = locales.get(r.id);
       return local && !estaActivo(local) && estaActivo(r) ? { ...r, actualizadoEn: ahora, dispositivoId: idDispositivo() } : r;
     });
@@ -2166,7 +2314,7 @@ async function borrarTodo() {
   });
   if (!seguro) return;
   try {
-    await imponerDatos({ clientes: [], recordatorios: [], etiquetas: [], ajustes: compartidosPorDefecto() }, 'borrar');
+    await imponerDatos({ clientes: [], recordatorios: [], etiquetas: [], productos: [], ajustes: compartidosPorDefecto() }, 'borrar');
     cargarFormularioAjustes();
     redibujar();
     avisar(t('todoBorrado'));
@@ -2531,9 +2679,11 @@ async function actualizarArchivoDrive(id, contenido) {
 }
 
 /** Datos de este dispositivo en el formato de la mezcla. */
-const datosLocalesParaMezcla = () => ({
-  clientes: estado.clientes, recordatorios: estado.recordatorios, etiquetas: estado.etiquetas, ajustes: estado.compartidos
-});
+function datosLocalesParaMezcla() {
+  const datos = { ajustes: estado.compartidos };
+  TucankitCore.COLECCIONES.forEach((k) => { datos[k] = estado[k]; });
+  return datos;
+}
 
 /** ¿La mezcla cambia algo? */
 const hayCambios = (r) => r.agregados + r.actualizados + r.borrados > 0;
@@ -2885,6 +3035,11 @@ function conectarEventos() {
     dibujarEditorPlantilla();
   });
 
+  // Servicios y productos
+  $('producto-agregar').addEventListener('click', guardarProducto);
+  ['producto-nombre', 'producto-precio'].forEach((id) => $(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); guardarProducto(); } }));
+  $('rec-detalle').addEventListener('input', dibujarProductosFormulario);
+
   // Copias y borrar todo
   $('btn-descargar').addEventListener('click', descargarCopia);
   $('aviso-copia-descargar').addEventListener('click', descargarCopia);
@@ -2924,12 +3079,12 @@ function conectarEventos() {
 
 /** Lee todos los datos de la base a la memoria. */
 async function cargarDatos() {
-  const [clientes, recordatorios, etiquetas, compartidos, locales] = await Promise.all([
-    leerTodoBD('clientes'), leerTodoBD('recordatorios'), leerTodoBD('etiquetas'),
+  const [clientes, recordatorios, etiquetas, productos, compartidos, locales] = await Promise.all([
+    leerTodoBD('clientes'), leerTodoBD('recordatorios'), leerTodoBD('etiquetas'), leerTodoBD('productos'),
     leerUnoBD('ajustes', 'compartidos'), leerUnoBD('ajustes', 'locales')
   ]);
   Object.assign(estado, {
-    clientes, recordatorios, etiquetas,
+    clientes, recordatorios, etiquetas, productos,
     compartidos: normalizarCompartidos(compartidos || {}),
     locales: normalizarLocales(locales || {})
   });

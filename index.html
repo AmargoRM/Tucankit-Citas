@@ -321,6 +321,18 @@
         </div>
       </form>
 
+      <!-- Servicios y productos: se guardan al instante (no dependen del botón Guardar) -->
+      <div class="tarjeta">
+        <h3 data-t="productosTitulo"></h3>
+        <p class="ayuda" data-t="productosExplicacion"></p>
+        <div id="lista-productos" class="lista lista-compacta"></div>
+        <div class="fila-producto">
+          <input id="producto-nombre" type="text" maxlength="80" autocomplete="off" data-t-placeholder="ejemploProducto" aria-label="Nombre">
+          <input id="producto-precio" type="text" inputmode="decimal" maxlength="20" autocomplete="off" data-t-placeholder="ejemploPrecio" aria-label="Precio">
+          <button id="producto-agregar" class="boton boton-secundario boton-chico" type="button" data-t="agregar"></button>
+        </div>
+      </div>
+
       <div class="tarjeta">
         <h3 data-t="qrTitulo"></h3>
         <p class="ayuda" data-t="qrExplicacion"></p>
@@ -454,8 +466,10 @@
 
       <label class="campo">
         <span id="rec-detalle-etiqueta"></span>
-        <input id="rec-detalle" type="text" maxlength="120" autocomplete="off">
+        <input id="rec-detalle" type="text" maxlength="200" autocomplete="off" list="sugerencias-productos">
+        <datalist id="sugerencias-productos"></datalist>
       </label>
+      <div id="rec-productos" class="fichas-filtro fichas-tipo fichas-productos"></div>
 
       <label class="campo">
         <span data-t="campoNota"></span>
