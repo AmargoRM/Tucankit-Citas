@@ -38,3 +38,16 @@ Estas reglas valen para cualquier persona o asistente que modifique este reposit
   incluye el **nombre del comprador**, y la app lo muestra en Ajustes («Licencia de …»).
   **No** usar activación en línea ni servidor (Cloudflare Worker), ni ofuscar el código, salvo que
   el dueño lo pida explícitamente más adelante.
+
+## Pendientes (recordárselos al dueño cuando pregunte «qué falta»)
+
+- [ ] **Bienvenida:** agregar un paso que explique cómo instalar la app en la computadora desde Chrome
+      (botón «Instalar app» de la barra de direcciones). Esperar a que el dueño diga que se haga.
+- [ ] **Google Drive:** que el dueño confirme que la conexión funciona con su cuenta de prueba.
+- [ ] **Excel:** que el dueño confirme que la plantilla abre bien en Microsoft Excel real y que se importa.
+- [ ] **Dominio:** comprar `tucankit.com`, publicar con Cloudflare Pages en `citas.tucankit.com`,
+      avisar a los usuarios de prueba que muden sus datos y luego apagar GitHub Pages.
+- [ ] **Antes de cobrar:** revisión de los términos de uso por un abogado de Costa Rica y decidir
+      el modelo de cobro (pago único, suscripción o gratis con límite). Licencias: ver «Decisiones».
+- [ ] **Extensión de Chrome:** solo si varios usuarios la piden; en ese caso, la opción de panel lateral
+      (sin tocar la página de WhatsApp Web).
