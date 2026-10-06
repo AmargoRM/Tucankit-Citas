@@ -79,6 +79,11 @@ Reglas del proyecto: ver [`CLAUDE.md`](CLAUDE.md).
 
 > El archivo vacío `.nojekyll` le indica a GitHub Pages que publique los archivos tal cual. No lo borre.
 
+**Si la publicación se traba** (en la pestaña *Actions* queda «Queued» por mucho tiempo): primero revisar
+<https://www.githubstatus.com>. Si GitHub tuvo una falla, la publicación que quedó en espera puede no
+retomarse sola: subir cualquier cambio nuevo a la rama publicada, o en **Settings → Pages** tocar **Save**
+sin cambiar nada, hace que GitHub empiece una publicación nueva.
+
 ## Publicarla en Cloudflare Pages
 
 1. Cloudflare → **Workers & Pages → Create → Pages → Connect to Git** → elegir el repositorio y la rama publicada.
